@@ -1464,7 +1464,7 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
           <div className="relative">
             <input
               type="text"
-              placeholder="Rechercher par nom, prénom ou identifiant..."
+              placeholder="Rechercher un élève..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-gray-700 text-white p-3 pl-10 rounded-lg"
