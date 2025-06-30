@@ -1589,67 +1589,247 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
 
 // Composant affichage des scores
 const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluation, allResults, allStudents }) => {
+  const [expandedLevels, setExpandedLevels] = useState({
+    '6ème': true,
+    '5ème': false,
+    '4ème': false,
+    '3ème': false
+  });
+  const [expandedClasses, setExpandedClasses] = useState({});
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Fonction pour obtenir le niveau à partir de la classe
+  const getLevel = (className) => {
+    if (className.startsWith('6')) return '6ème';
+    if (className.startsWith('5')) return '5ème';
+    if (className.startsWith('4')) return '4ème';
+    if (className.startsWith('3')) return '3ème';
+    return 'Autre';
+  };
+
+  // Calculer le score moyen d'un élève
+  const getStudentAverageScore = (student) => {
+    const studentResults = results.filter(r => r.studentId === student.id);
+    if (studentResults.length === 0) return 0;
+    
+    let totalScore = 0;
+    let validScores = 0;
+    
+    studentResults.forEach(result => {
+      const test = allTests.find(t => t.id === result.testId);
+      if (test) {
+        const score = calculateScore(result.value, test, student, allResults, allStudents);
+        if (score !== null) {
+          totalScore += score;
+          validScores++;
+        }
+      }
+    });
+    
+    return validScores > 0 ? Math.round(totalScore / validScores) : 0;
+  };
+
+  // Grouper les élèves par niveau puis par classe
+  const groupedStudents = students.reduce((groups, student) => {
+    const level = getLevel(student.class);
+    const className = student.class;
+    
+    if (!groups[level]) {
+      groups[level] = {};
+    }
+    if (!groups[level][className]) {
+      groups[level][className] = [];
+    }
+    
+    groups[level][className].push({
+      ...student,
+      averageScore: getStudentAverageScore(student),
+      resultCount: results.filter(r => r.studentId === student.id).length
+    });
+    return groups;
+  }, {});
+
+  // Trier les élèves par score décroissant dans chaque classe
+  Object.keys(groupedStudents).forEach(level => {
+    Object.keys(groupedStudents[level]).forEach(className => {
+      groupedStudents[level][className].sort((a, b) => b.averageScore - a.averageScore);
+    });
+  });
+
+  // Ordonner les niveaux
+  const orderedLevels = ['6ème', '5ème', '4ème', '3ème'].filter(level => groupedStudents[level]);
+
+  const toggleLevel = (level) => {
+    setExpandedLevels(prev => ({ ...prev, [level]: !prev[level] }));
+  };
+
+  const toggleClass = (level, className) => {
+    const key = `${level}-${className}`;
+    setExpandedClasses(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const viewStudentDetails = (student) => {
+    setSelectedStudent(student);
+  };
+
+  const backToList = () => {
+    setSelectedStudent(null);
+  };
+
+  // Si un élève est sélectionné, afficher sa vue détaillée
+  if (selectedStudent) {
+    return (
+      <StudentDetailView
+        student={selectedStudent}
+        results={results}
+        testCategories={{ vitesse: [], endurance: [], saut: [], lancer: [], force: [], souplesse: [], equilibre: [] }}
+        calculateScore={calculateScore}
+        getEvaluation={getEvaluation}
+        getAllTests={() => allTests}
+        allResults={allResults}
+        allStudents={allStudents}
+        onBack={backToList}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Résultats et Scores</h2>
-        <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
-          {results.length} résultats en base
+        <div className="flex gap-4">
+          <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
+            {results.length} résultats en base
+          </div>
+          <button
+            onClick={() => {
+              const allExpanded = Object.values(expandedLevels).every(v => v);
+              const newState = allExpanded ? 
+                { '6ème': false, '5ème': false, '4ème': false, '3ème': false } :
+                { '6ème': true, '5ème': true, '4ème': true, '3ème': true };
+              setExpandedLevels(newState);
+            }}
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            {Object.values(expandedLevels).every(v => v) ? 'Tout replier' : 'Tout déplier'}
+          </button>
         </div>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {students.map(student => {
-          const studentResults = results.filter(r => r.studentId === student.id);
+      <div className="space-y-4">
+        {orderedLevels.map(level => {
+          const levelClasses = Object.keys(groupedStudents[level]).sort();
+          const levelStudentCount = Object.values(groupedStudents[level]).flat().length;
           
           return (
-            <div key={student.id} className="bg-gray-800 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-white mb-2">
-                {student.firstName} {student.lastName}
-              </h3>
-              <p className="text-gray-400 mb-4">Classe {student.class}</p>
-              
-              <div className="space-y-3">
-                {studentResults.map(result => {
-                  const test = allTests.find(t => t.id === result.testId);
-                  if (!test) return null;
-                  
-                  const score = calculateScore(result.value, test, student, allResults, allStudents);
-                  const evaluation = getEvaluation(score);
-                  
-                  return (
-                    <div key={result.id} className="bg-gray-700 rounded-lg p-3">
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-white font-medium">{test.name}</span>
-                        <span className={`font-bold ${evaluation.color}`}>
-                          {score !== null ? `${score}/100` : 'N/A'}
-                        </span>
+            <div key={level} className="bg-gray-800 rounded-lg overflow-hidden">
+              {/* En-tête du niveau */}
+              <button
+                onClick={() => toggleLevel(level)}
+                className="w-full p-4 bg-gray-700 hover:bg-gray-600 flex items-center justify-between transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {expandedLevels[level] ? 
+                    <RefreshCw className="w-5 h-5 text-blue-400 rotate-90 transition-transform" /> :
+                    <RefreshCw className="w-5 h-5 text-gray-400 transition-transform" />
+                  }
+                  <h3 className="text-xl font-bold text-white">{level}</h3>
+                  <span className="text-sm text-gray-300">({levelStudentCount} élèves)</span>
+                </div>
+                <div className="flex gap-2">
+                  {levelClasses.map(className => {
+                    const classStudents = groupedStudents[level][className];
+                    const classAverage = classStudents.length > 0 
+                      ? Math.round(classStudents.reduce((sum, s) => sum + s.averageScore, 0) / classStudents.length)
+                      : 0;
+                    return (
+                      <span key={className} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
+                        {className}: {classStudents.length} (moy. {classAverage})
+                      </span>
+                    );
+                  })}
+                </div>
+              </button>
+
+              {/* Contenu du niveau */}
+              {expandedLevels[level] && (
+                <div className="p-4 space-y-4">
+                  {levelClasses.map(className => {
+                    const classStudents = groupedStudents[level][className];
+                    const classKey = `${level}-${className}`;
+                    const isClassExpanded = expandedClasses[classKey] !== false;
+                    
+                    return (
+                      <div key={className} className="bg-gray-700 rounded-lg overflow-hidden">
+                        {/* En-tête de la classe */}
+                        <button
+                          onClick={() => toggleClass(level, className)}
+                          className="w-full p-3 bg-gray-600 hover:bg-gray-500 flex items-center justify-between transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            {isClassExpanded ? 
+                              <RefreshCw className="w-4 h-4 text-green-400 rotate-90 transition-transform" /> :
+                              <RefreshCw className="w-4 h-4 text-gray-400 transition-transform" />
+                            }
+                            <h4 className="text-lg font-semibold text-white">Classe {className}</h4>
+                            <span className="text-sm text-gray-300">({classStudents.length} élèves)</span>
+                          </div>
+                          <div className="text-xs text-gray-300">
+                            Classement par score moyen
+                          </div>
+                        </button>
+
+                        {/* Liste des élèves classés */}
+                        {isClassExpanded && (
+                          <div className="p-3">
+                            <div className="space-y-2">
+                              {classStudents.map((student, index) => (
+                                <button
+                                  key={student.id}
+                                  onClick={() => viewStudentDetails(student)}
+                                  className="w-full p-3 bg-gray-600 hover:bg-gray-500 rounded-lg flex items-center justify-between transition-colors group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                      index === 0 ? 'bg-yellow-500 text-yellow-900' :
+                                      index === 1 ? 'bg-gray-400 text-gray-900' :
+                                      index === 2 ? 'bg-orange-600 text-orange-900' :
+                                      'bg-gray-700 text-gray-300'
+                                    }`}>
+                                      {index + 1}
+                                    </div>
+                                    <div className="text-left">
+                                      <p className="text-white font-medium group-hover:text-blue-300">
+                                        {student.firstName} {student.lastName}
+                                      </p>
+                                      <p className="text-xs text-gray-400">
+                                        {student.resultCount} test{student.resultCount !== 1 ? 's' : ''} effectué{student.resultCount !== 1 ? 's' : ''}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="text-right">
+                                      <p className={`font-bold ${
+                                        student.averageScore >= 75 ? 'text-green-400' :
+                                        student.averageScore >= 50 ? 'text-yellow-400' :
+                                        'text-orange-400'
+                                      }`}>
+                                        {student.averageScore}/100
+                                      </p>
+                                      <p className="text-xs text-gray-400">Score moyen</p>
+                                    </div>
+                                    <BarChart3 className="w-4 h-4 text-gray-400 group-hover:text-blue-300" />
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-400">{result.value} {test.unit}</span>
-                        <span className={evaluation.color}>{evaluation.text}</span>
-                      </div>
-                      {evaluation.message && (
-                        <p className="text-xs text-gray-300 italic">{evaluation.message}</p>
-                      )}
-                      {score !== null && (
-                        <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
-                          <div
-                            className={`h-2 rounded-full ${
-                              score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-500' : 'bg-orange-500'
-                            }`}
-                            style={{ width: `${score}%` }}
-                          ></div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                
-                {studentResults.length === 0 && (
-                  <p className="text-gray-500 text-center py-4">Aucun résultat enregistré</p>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -1912,6 +2092,156 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
           </div>
         )}
       </main>
+    </div>
+  );
+};
+
+// Composant vue détaillée d'un élève (pour les admins)
+const StudentDetailView = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, onBack }) => {
+  const studentResults = results.filter(r => r.studentId === student.id);
+  const allTests = getAllTests();
+
+  // Reconstituer les catégories avec les tests
+  const categoriesWithTests = {};
+  allTests.forEach(test => {
+    if (!categoriesWithTests[test.category]) {
+      categoriesWithTests[test.category] = [];
+    }
+    categoriesWithTests[test.category].push(test);
+  });
+  
+  return (
+    <div className="space-y-6">
+      {/* En-tête avec bouton retour */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onBack}
+          className="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded-lg flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4 rotate-180" />
+          Retour à la liste
+        </button>
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            {student.firstName} {student.lastName}
+          </h2>
+          <p className="text-gray-400">Classe {student.class} • Vue détaillée des résultats</p>
+        </div>
+      </div>
+
+      {/* Statistiques générales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Tests effectués</h3>
+          <p className="text-2xl font-bold text-blue-400">{studentResults.length}</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Score moyen</h3>
+          <p className="text-2xl font-bold text-green-400">
+            {studentResults.length > 0 
+              ? Math.round(studentResults.reduce((sum, result) => {
+                  const test = allTests.find(t => t.id === result.testId);
+                  if (test) {
+                    const score = calculateScore(result.value, test, student, allResults, allStudents);
+                    return sum + (score || 0);
+                  }
+                  return sum;
+                }, 0) / studentResults.length)
+              : 0}/100
+          </p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Identifiant</h3>
+          <p className="text-lg text-blue-400">{student.username}</p>
+        </div>
+      </div>
+
+      {/* Résultats par catégorie */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.entries(categoriesWithTests).map(([category, tests]) => {
+          const categoryResults = studentResults.filter(result => 
+            tests.some(test => test.id === result.testId)
+          );
+          
+          if (categoryResults.length === 0) return null;
+          
+          return (
+            <div key={category} className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 capitalize">
+                {category}
+              </h2>
+              
+              <div className="space-y-4">
+                {categoryResults.map(result => {
+                  const test = allTests.find(t => t.id === result.testId);
+                  if (!test) return null;
+                  
+                  const score = calculateScore(result.value, test, student, allResults, allStudents);
+                  const evaluation = getEvaluation(score);
+                  
+                  return (
+                    <div key={result.id} className="text-center">
+                      <div className="relative w-24 h-24 mx-auto mb-3">
+                        <svg className="w-24 h-24 transform -rotate-90">
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="40"
+                            stroke="rgb(75, 85, 99)"
+                            strokeWidth="8"
+                            fill="none"
+                          />
+                          {score !== null && (
+                            <circle
+                              cx="48"
+                              cy="48"
+                              r="40"
+                              stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#fb923c'}
+                              strokeWidth="8"
+                              fill="none"
+                              strokeDasharray={`${score * 2.51} 251`}
+                              strokeLinecap="round"
+                            />
+                          )}
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <span className="text-white font-bold">
+                            {score !== null ? score : 'N/A'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <h3 className="text-white font-medium mb-1">{test.name}</h3>
+                      <p className="text-gray-400 text-sm mb-1">
+                        {result.value} {test.unit}
+                      </p>
+                      <p className="text-xs text-gray-400 mb-1">
+                        {new Date(result.date).toLocaleDateString('fr-FR')}
+                      </p>
+                      <p className={`text-sm font-medium ${evaluation.color} mb-1`}>
+                        {evaluation.text}
+                      </p>
+                      {evaluation.message && (
+                        <p className="text-xs text-gray-300 italic px-2">
+                          {evaluation.message}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      {studentResults.length === 0 && (
+        <div className="text-center py-12">
+          <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Aucun résultat disponible</h3>
+          <p className="text-gray-400">Cet élève n'a pas encore de résultats enregistrés.</p>
+        </div>
+      )}
     </div>
   );
 };
