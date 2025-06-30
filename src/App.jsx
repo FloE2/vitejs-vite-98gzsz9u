@@ -2102,46 +2102,66 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
                     const evaluation = getEvaluation(score);
                     
                     return (
-                      <div key={result.id} className="text-center">
-                        <div className="relative w-24 h-24 mx-auto mb-3">
-                          <svg className="w-24 h-24 transform -rotate-90">
-                            <circle
-                              cx="48"
-                              cy="48"
-                              r="40"
-                              stroke="rgb(75, 85, 99)"
-                              strokeWidth="8"
-                              fill="none"
-                            />
-                            {score !== null && (
+                      <div key={result.id} className="bg-gray-700 rounded-lg p-4">
+                        <div className="text-center mb-4">
+                          <div className="relative w-24 h-24 mx-auto mb-3">
+                            <svg className="w-24 h-24 transform -rotate-90">
                               <circle
                                 cx="48"
                                 cy="48"
                                 r="40"
-                                stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#fb923c'}
+                                stroke="rgb(75, 85, 99)"
                                 strokeWidth="8"
                                 fill="none"
-                                strokeDasharray={`${score * 2.51} 251`}
-                                strokeLinecap="round"
                               />
-                            )}
-                          </svg>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-white font-bold">
-                              {score !== null ? score : 'N/A'}
-                            </span>
+                              {score !== null && (
+                                <circle
+                                  cx="48"
+                                  cy="48"
+                                  r="40"
+                                  stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#fb923c'}
+                                  strokeWidth="8"
+                                  fill="none"
+                                  strokeDasharray={`${score * 2.51} 251`}
+                                  strokeLinecap="round"
+                                />
+                              )}
+                            </svg>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-white font-bold">
+                                {score !== null ? score : 'N/A'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <h3 className="text-white font-medium mb-1">{test.name}</h3>
+                          <p className="text-gray-400 text-sm mb-1">
+                            {result.value} {test.unit}
+                          </p>
+                          <p className={`text-sm font-medium ${evaluation.color} mb-2`}>
+                            {evaluation.text}
+                          </p>
+                        </div>
+                    
+                        {/* Section comparaisons */}
+                        <div className="bg-gray-600 rounded-lg p-3 text-xs">
+                          <h4 className="text-white font-medium mb-2">
+                            📊 Comparaison de niveau
+                          </h4>
+                          <div className="space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">Mon score :</span>
+                              <span className="text-white font-medium">{score}/100</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">Test :</span>
+                              <span className="text-blue-400">{test.name}</span>
+                            </div>
                           </div>
                         </div>
                         
-                        <h3 className="text-white font-medium mb-1">{test.name}</h3>
-                        <p className="text-gray-400 text-sm mb-1">
-                          {result.value} {test.unit}
-                        </p>
-                        <p className={`text-sm font-medium ${evaluation.color} mb-1`}>
-                          {evaluation.text}
-                        </p>
                         {evaluation.message && (
-                          <p className="text-xs text-gray-300 italic px-2">
+                          <p className="text-xs text-gray-300 italic px-2 mt-2 text-center">
                             {evaluation.message}
                           </p>
                         )}
