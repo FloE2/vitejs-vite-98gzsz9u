@@ -83,7 +83,11 @@ const App = () => {
         id: doc.id,
         ...doc.data()
       }));
-      setClasses(classesData.sort((a, b) => a.name.localeCompare(b.name)));
+      setClasses(classesData.sort((a, b) => {
+        const nameA = a.name || '';
+        const nameB = b.name || '';
+        return nameA.localeCompare(nameB);
+      }));
     } catch (error) {
       console.error('Erreur chargement classes:', error);
     }
