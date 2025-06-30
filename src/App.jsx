@@ -584,13 +584,8 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
               </button>
             </div>
 
-            <div className="text-xs text-gray-500 text-center mt-4">
-              <p className="font-medium text-gray-400 mb-2">Comptes de test disponibles :</p>
-              <div className="space-y-1">
-                <p>martin.dupont / martin123</p>
-                <p>julie.durand / julie123</p>
-                <p>pierre.lemoine / pierre123</p>
-              </div>
+            <div className="text-xs text-gray-400 text-center mt-4">
+              <p>Pas encore de compte ? Utilisez l'onglet <span className="text-green-400 font-medium">"S'inscrire"</span> !</p>
             </div>
           </div>
         ) : (
