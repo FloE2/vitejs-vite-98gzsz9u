@@ -1467,7 +1467,7 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
               placeholder="Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-700 text-white p-3 pl-10 rounded-lg"
+              className="w-full bg-gray-700 text-white p-3 pl-12 rounded-lg"
             />
             <Users className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           </div>
