@@ -1317,30 +1317,110 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
 
 // Composant saisie des résultats
 const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }) => {
+  const [expandedLevels, setExpandedLevels] = useState({
+    '6ème': true,
+    '5ème': false,
+    '4ème': false,
+    '3ème': false
+  });
+  const [expandedClasses, setExpandedClasses] = useState({});
+  const [selectedStudent, setSelectedStudent] = useState(null);
+
+  // Fonction pour obtenir le niveau à partir de la classe
+  const getLevel = (className) => {
+    if (className.startsWith('6')) return '6ème';
+    if (className.startsWith('5')) return '5ème';
+    if (className.startsWith('4')) return '4ème';
+    if (className.startsWith('3')) return '3ème';
+    return 'Autre';
+  };
+
+  // Grouper les élèves par niveau puis par classe
+  const groupedStudents = students.reduce((groups, student) => {
+    const level = getLevel(student.class);
+    const className = student.class;
+    
+    if (!groups[level]) {
+      groups[level] = {};
+    }
+    if (!groups[level][className]) {
+      groups[level][className] = [];
+    }
+    
+    groups[level][className].push(student);
+    return groups;
+  }, {});
+
+  // Ordonner les niveaux
+  const orderedLevels = ['6ème', '5ème', '4ème', '3ème'].filter(level => groupedStudents[level]);
+
+  const toggleLevel = (level) => {
+    setExpandedLevels(prev => ({ ...prev, [level]: !prev[level] }));
+  };
+
+  const toggleClass = (level, className) => {
+    const key = `${level}-${className}`;
+    setExpandedClasses(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const selectStudent = (student) => {
+    setSelectedStudent(student);
+    setNewResult({ ...newResult, studentId: student.id });
+  };
+
+  const handleAddResult = async () => {
+    if (!newResult.studentId || !newResult.testId || !newResult.value) {
+      alert('Veuillez sélectionner un élève, un test et saisir un résultat');
+      return;
+    }
+    
+    await addResult();
+    setSelectedStudent(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Saisie des Résultats</h2>
-        <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
-          Sauvegarde automatique Firebase
+        <div className="flex gap-4">
+          <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
+            Sauvegarde automatique Firebase
+          </div>
+          {selectedStudent && (
+            <div className="text-sm text-blue-400 bg-blue-900/20 rounded-lg px-3 py-1">
+              Élève sélectionné : {selectedStudent.firstName} {selectedStudent.lastName} ({selectedStudent.class})
+            </div>
+          )}
         </div>
       </div>
       
+      {/* Formulaire de saisie */}
       <div className="bg-gray-800 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-white mb-4">Nouveau résultat</h3>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            value={newResult.studentId}
-            onChange={(e) => setNewResult({ ...newResult, studentId: e.target.value })}
-            className="bg-gray-700 text-white p-3 rounded-lg"
-          >
-            <option value="">Sélectionner un élève</option>
-            {students.map(student => (
-              <option key={student.id} value={student.id}>
-                {student.firstName} {student.lastName} ({student.class})
-              </option>
-            ))}
-          </select>
+          {/* Zone élève sélectionné */}
+          <div className="bg-gray-700 rounded-lg p-3">
+            {selectedStudent ? (
+              <div className="text-center">
+                <p className="text-white font-medium">{selectedStudent.firstName} {selectedStudent.lastName}</p>
+                <p className="text-gray-400 text-sm">Classe {selectedStudent.class}</p>
+                <button
+                  onClick={() => {
+                    setSelectedStudent(null);
+                    setNewResult({ ...newResult, studentId: '' });
+                  }}
+                  className="text-red-400 hover:text-red-300 text-xs mt-1"
+                >
+                  <X className="w-3 h-3 inline mr-1" />
+                  Changer d'élève
+                </button>
+              </div>
+            ) : (
+              <p className="text-gray-400 text-center">Sélectionnez un élève ci-dessous</p>
+            )}
+          </div>
+
+          {/* Sélection du test */}
           <select
             value={newResult.testId}
             onChange={(e) => setNewResult({ ...newResult, testId: e.target.value })}
@@ -1353,6 +1433,8 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
               </option>
             ))}
           </select>
+
+          {/* Saisie du résultat */}
           <input
             type="number"
             step="0.01"
@@ -1361,6 +1443,8 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
             onChange={(e) => setNewResult({ ...newResult, value: e.target.value })}
             className="bg-gray-700 text-white p-3 rounded-lg"
           />
+
+          {/* Date et bouton */}
           <div className="flex gap-2">
             <input
               type="date"
@@ -1369,13 +1453,128 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
               className="bg-gray-700 text-white p-3 rounded-lg flex-1"
             />
             <button
-              onClick={addResult}
+              onClick={handleAddResult}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
             >
               <Save className="w-4 h-4" />
               Enregistrer
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Sélection d'élève organisée */}
+      <div className="bg-gray-800 rounded-lg p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-white">Sélectionner un élève</h3>
+          <button
+            onClick={() => {
+              const allExpanded = Object.values(expandedLevels).every(v => v);
+              const newState = allExpanded ? 
+                { '6ème': false, '5ème': false, '4ème': false, '3ème': false } :
+                { '6ème': true, '5ème': true, '4ème': true, '3ème': true };
+              setExpandedLevels(newState);
+            }}
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            {Object.values(expandedLevels).every(v => v) ? 'Tout replier' : 'Tout déplier'}
+          </button>
+        </div>
+
+        <div className="space-y-3">
+          {orderedLevels.map(level => {
+            const levelClasses = Object.keys(groupedStudents[level]).sort();
+            const levelStudentCount = Object.values(groupedStudents[level]).flat().length;
+            
+            return (
+              <div key={level} className="bg-gray-700 rounded-lg overflow-hidden">
+                {/* En-tête du niveau */}
+                <button
+                  onClick={() => toggleLevel(level)}
+                  className="w-full p-3 bg-gray-600 hover:bg-gray-500 flex items-center justify-between transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    {expandedLevels[level] ? 
+                      <RefreshCw className="w-4 h-4 text-blue-400 rotate-90 transition-transform" /> :
+                      <RefreshCw className="w-4 h-4 text-gray-400 transition-transform" />
+                    }
+                    <h4 className="text-lg font-semibold text-white">{level}</h4>
+                    <span className="text-sm text-gray-300">({levelStudentCount} élèves)</span>
+                  </div>
+                  <div className="flex gap-1">
+                    {levelClasses.map(className => (
+                      <span key={className} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
+                        {className}: {groupedStudents[level][className].length}
+                      </span>
+                    ))}
+                  </div>
+                </button>
+
+                {/* Contenu du niveau */}
+                {expandedLevels[level] && (
+                  <div className="p-3 space-y-3">
+                    {levelClasses.map(className => {
+                      const classStudents = groupedStudents[level][className];
+                      const classKey = `${level}-${className}`;
+                      const isClassExpanded = expandedClasses[classKey] !== false;
+                      
+                      return (
+                        <div key={className} className="bg-gray-600 rounded-lg overflow-hidden">
+                          {/* En-tête de la classe */}
+                          <button
+                            onClick={() => toggleClass(level, className)}
+                            className="w-full p-2 bg-gray-500 hover:bg-gray-400 flex items-center justify-between transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              {isClassExpanded ? 
+                                <RefreshCw className="w-3 h-3 text-green-400 rotate-90 transition-transform" /> :
+                                <RefreshCw className="w-3 h-3 text-gray-400 transition-transform" />
+                              }
+                              <h5 className="font-medium text-white">Classe {className}</h5>
+                              <span className="text-xs text-gray-300">({classStudents.length})</span>
+                            </div>
+                          </button>
+
+                          {/* Liste des élèves de la classe */}
+                          {isClassExpanded && (
+                            <div className="p-2">
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                                {classStudents
+                                  .sort((a, b) => a.lastName.localeCompare(b.lastName))
+                                  .map(student => (
+                                  <button
+                                    key={student.id}
+                                    onClick={() => selectStudent(student)}
+                                    className={`p-2 rounded-lg text-left transition-colors ${
+                                      selectedStudent?.id === student.id
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-4 h-4 rounded-full text-xs flex items-center justify-center ${
+                                        student.gender === 'M' ? 'bg-blue-500' : 'bg-pink-500'
+                                      }`}>
+                                        {student.gender === 'M' ? '♂' : '♀'}
+                                      </span>
+                                      <div>
+                                        <p className="font-medium text-sm">{student.firstName} {student.lastName}</p>
+                                        <p className="text-xs opacity-75">{student.username}</p>
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
