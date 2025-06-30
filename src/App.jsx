@@ -1317,14 +1317,10 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
 
 // Composant saisie des résultats
 const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }) => {
-  const [expandedLevels, setExpandedLevels] = useState({
-    '6ème': true,
-    '5ème': false,
-    '4ème': false,
-    '3ème': false
-  });
-  const [expandedClasses, setExpandedClasses] = useState({});
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
+  const [selectedLevel, setSelectedLevel] = useState('');
 
   // Fonction pour obtenir le niveau à partir de la classe
   const getLevel = (className) => {
@@ -1335,33 +1331,22 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
     return 'Autre';
   };
 
-  // Grouper les élèves par niveau puis par classe
-  const groupedStudents = students.reduce((groups, student) => {
-    const level = getLevel(student.class);
-    const className = student.class;
+  // Obtenir la liste des niveaux et classes uniques
+  const levels = [...new Set(students.map(s => getLevel(s.class)))].sort();
+  const classes = [...new Set(students.map(s => s.class))].sort();
+
+  // Filtrer les élèves selon les critères
+  const filteredStudents = students.filter(student => {
+    const matchesSearch = searchTerm === '' || 
+      student.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.username.toLowerCase().includes(searchTerm.toLowerCase());
     
-    if (!groups[level]) {
-      groups[level] = {};
-    }
-    if (!groups[level][className]) {
-      groups[level][className] = [];
-    }
+    const matchesClass = selectedClass === '' || student.class === selectedClass;
+    const matchesLevel = selectedLevel === '' || getLevel(student.class) === selectedLevel;
     
-    groups[level][className].push(student);
-    return groups;
-  }, {});
-
-  // Ordonner les niveaux
-  const orderedLevels = ['6ème', '5ème', '4ème', '3ème'].filter(level => groupedStudents[level]);
-
-  const toggleLevel = (level) => {
-    setExpandedLevels(prev => ({ ...prev, [level]: !prev[level] }));
-  };
-
-  const toggleClass = (level, className) => {
-    const key = `${level}-${className}`;
-    setExpandedClasses(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+    return matchesSearch && matchesClass && matchesLevel;
+  }).sort((a, b) => `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`));
 
   const selectStudent = (student) => {
     setSelectedStudent(student);
@@ -1376,6 +1361,13 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
     
     await addResult();
     setSelectedStudent(null);
+    setSearchTerm('');
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedClass('');
+    setSelectedLevel('');
   };
 
   return (
@@ -1388,7 +1380,7 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
           </div>
           {selectedStudent && (
             <div className="text-sm text-blue-400 bg-blue-900/20 rounded-lg px-3 py-1">
-              Élève sélectionné : {selectedStudent.firstName} {selectedStudent.lastName} ({selectedStudent.class})
+              ✓ {selectedStudent.firstName} {selectedStudent.lastName} ({selectedStudent.class})
             </div>
           )}
         </div>
@@ -1463,118 +1455,135 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
         </div>
       </div>
 
-      {/* Sélection d'élève organisée */}
+      {/* Sélection d'élève avec recherche */}
       <div className="bg-gray-800 rounded-lg p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-white">Sélectionner un élève</h3>
-          <button
-            onClick={() => {
-              const allExpanded = Object.values(expandedLevels).every(v => v);
-              const newState = allExpanded ? 
-                { '6ème': false, '5ème': false, '4ème': false, '3ème': false } :
-                { '6ème': true, '5ème': true, '4ème': true, '3ème': true };
-              setExpandedLevels(newState);
-            }}
-            className="text-sm text-blue-400 hover:text-blue-300"
+        <h3 className="text-lg font-semibold text-white mb-4">Rechercher et sélectionner un élève</h3>
+        
+        {/* Filtres de recherche */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Rechercher par nom, prénom ou identifiant..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-700 text-white p-3 pl-10 rounded-lg"
+            />
+            <Users className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          </div>
+          
+          <select
+            value={selectedLevel}
+            onChange={(e) => setSelectedLevel(e.target.value)}
+            className="bg-gray-700 text-white p-3 rounded-lg"
           >
-            {Object.values(expandedLevels).every(v => v) ? 'Tout replier' : 'Tout déplier'}
+            <option value="">Tous les niveaux</option>
+            {levels.map(level => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+          
+          <select
+            value={selectedClass}
+            onChange={(e) => setSelectedClass(e.target.value)}
+            className="bg-gray-700 text-white p-3 rounded-lg"
+          >
+            <option value="">Toutes les classes</option>
+            {classes.map(cls => (
+              <option key={cls} value={cls}>{cls}</option>
+            ))}
+          </select>
+          
+          <button
+            onClick={clearFilters}
+            className="bg-gray-600 hover:bg-gray-500 text-white p-3 rounded-lg flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Effacer filtres
           </button>
         </div>
 
-        <div className="space-y-3">
-          {orderedLevels.map(level => {
-            const levelClasses = Object.keys(groupedStudents[level]).sort();
-            const levelStudentCount = Object.values(groupedStudents[level]).flat().length;
-            
-            return (
-              <div key={level} className="bg-gray-700 rounded-lg overflow-hidden">
-                {/* En-tête du niveau */}
-                <button
-                  onClick={() => toggleLevel(level)}
-                  className="w-full p-3 bg-gray-600 hover:bg-gray-500 flex items-center justify-between transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    {expandedLevels[level] ? 
-                      <RefreshCw className="w-4 h-4 text-blue-400 rotate-90 transition-transform" /> :
-                      <RefreshCw className="w-4 h-4 text-gray-400 transition-transform" />
-                    }
-                    <h4 className="text-lg font-semibold text-white">{level}</h4>
-                    <span className="text-sm text-gray-300">({levelStudentCount} élèves)</span>
-                  </div>
-                  <div className="flex gap-1">
-                    {levelClasses.map(className => (
-                      <span key={className} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
-                        {className}: {groupedStudents[level][className].length}
-                      </span>
-                    ))}
-                  </div>
-                </button>
+        {/* Compteur de résultats */}
+        <div className="flex justify-between items-center mb-4">
+          <p className="text-gray-400 text-sm">
+            {filteredStudents.length} élève{filteredStudents.length !== 1 ? 's' : ''} trouvé{filteredStudents.length !== 1 ? 's' : ''}
+            {searchTerm && ` pour "${searchTerm}"`}
+            {selectedLevel && ` en ${selectedLevel}`}
+            {selectedClass && ` en classe ${selectedClass}`}
+          </p>
+          
+          {filteredStudents.length > 20 && (
+            <p className="text-yellow-400 text-sm">
+              💡 Affichage limité aux 20 premiers résultats - affinez votre recherche
+            </p>
+          )}
+        </div>
 
-                {/* Contenu du niveau */}
-                {expandedLevels[level] && (
-                  <div className="p-3 space-y-3">
-                    {levelClasses.map(className => {
-                      const classStudents = groupedStudents[level][className];
-                      const classKey = `${level}-${className}`;
-                      const isClassExpanded = expandedClasses[classKey] !== false;
-                      
-                      return (
-                        <div key={className} className="bg-gray-600 rounded-lg overflow-hidden">
-                          {/* En-tête de la classe */}
-                          <button
-                            onClick={() => toggleClass(level, className)}
-                            className="w-full p-2 bg-gray-500 hover:bg-gray-400 flex items-center justify-between transition-colors"
-                          >
-                            <div className="flex items-center gap-2">
-                              {isClassExpanded ? 
-                                <RefreshCw className="w-3 h-3 text-green-400 rotate-90 transition-transform" /> :
-                                <RefreshCw className="w-3 h-3 text-gray-400 transition-transform" />
-                              }
-                              <h5 className="font-medium text-white">Classe {className}</h5>
-                              <span className="text-xs text-gray-300">({classStudents.length})</span>
-                            </div>
-                          </button>
-
-                          {/* Liste des élèves de la classe */}
-                          {isClassExpanded && (
-                            <div className="p-2">
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                                {classStudents
-                                  .sort((a, b) => a.lastName.localeCompare(b.lastName))
-                                  .map(student => (
-                                  <button
-                                    key={student.id}
-                                    onClick={() => selectStudent(student)}
-                                    className={`p-2 rounded-lg text-left transition-colors ${
-                                      selectedStudent?.id === student.id
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                                    }`}
-                                  >
-                                    <div className="flex items-center gap-2">
-                                      <span className={`w-4 h-4 rounded-full text-xs flex items-center justify-center ${
-                                        student.gender === 'M' ? 'bg-blue-500' : 'bg-pink-500'
-                                      }`}>
-                                        {student.gender === 'M' ? '♂' : '♀'}
-                                      </span>
-                                      <div>
-                                        <p className="font-medium text-sm">{student.firstName} {student.lastName}</p>
-                                        <p className="text-xs opacity-75">{student.username}</p>
-                                      </div>
-                                    </div>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        {/* Liste des élèves */}
+        <div className="bg-gray-700 rounded-lg max-h-96 overflow-y-auto">
+          {filteredStudents.length === 0 ? (
+            <div className="p-8 text-center text-gray-400">
+              <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>Aucun élève trouvé avec ces critères</p>
+              <button onClick={clearFilters} className="text-blue-400 hover:text-blue-300 mt-2">
+                Effacer les filtres
+              </button>
+            </div>
+          ) : (
+            <table className="w-full text-white text-sm">
+              <thead className="bg-gray-600 sticky top-0">
+                <tr>
+                  <th className="text-left p-3">Nom</th>
+                  <th className="text-left p-3">Classe</th>
+                  <th className="text-left p-3">Genre</th>
+                  <th className="text-left p-3">Identifiant</th>
+                  <th className="text-left p-3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredStudents.slice(0, 20).map((student, index) => (
+                  <tr 
+                    key={student.id} 
+                    className={`border-b border-gray-600 hover:bg-gray-600 cursor-pointer ${
+                      selectedStudent?.id === student.id ? 'bg-blue-600' : ''
+                    } ${index % 2 === 0 ? 'bg-gray-700/50' : ''}`}
+                    onClick={() => selectStudent(student)}
+                  >
+                    <td className="p-3">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-6 h-6 rounded-full text-xs flex items-center justify-center ${
+                          student.gender === 'M' ? 'bg-blue-500' : 'bg-pink-500'
+                        }`}>
+                          {student.gender === 'M' ? '♂' : '♀'}
+                        </span>
+                        <span className="font-medium">{student.lastName} {student.firstName}</span>
+                      </div>
+                    </td>
+                    <td className="p-3">
+                      <span className="bg-gray-600 px-2 py-1 rounded text-xs">{student.class}</span>
+                    </td>
+                    <td className="p-3">{student.gender === 'M' ? 'Masculin' : 'Féminin'}</td>
+                    <td className="p-3 text-blue-400">{student.username}</td>
+                    <td className="p-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          selectStudent(student);
+                        }}
+                        className={`px-3 py-1 rounded text-xs ${
+                          selectedStudent?.id === student.id
+                            ? 'bg-green-600 text-white'
+                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        }`}
+                      >
+                        {selectedStudent?.id === student.id ? '✓ Sélectionné' : 'Sélectionner'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
     </div>
