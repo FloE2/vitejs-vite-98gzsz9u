@@ -353,6 +353,8 @@ const App = () => {
         calculateScore={calculateScore}
         getEvaluation={getEvaluation}
         getAllTests={getAllTests}
+        allResults={results}
+        allStudents={students}
         onLogout={handleLogout}
       />
     );
@@ -367,6 +369,8 @@ const App = () => {
       calculateScore={calculateScore}
       getEvaluation={getEvaluation}
       getAllTests={getAllTests}
+      allResults={results}
+      allStudents={students}
       onLogout={handleLogout}
     />
   );
@@ -713,7 +717,7 @@ const AdminInterface = ({
   currentUser, activeTab, setActiveTab, testCategories, students, results, classes,
   newTest, setNewTest, newStudent, setNewStudent, newResult, setNewResult,
   addTest, deleteTest, addStudent, deleteStudent, addResult,
-  calculateScore, getEvaluation, getAllTests, onLogout
+  calculateScore, getEvaluation, getAllTests, allResults, allStudents, onLogout
 }) => {
   const tabs = [
     { id: 'tests', label: 'Gestion des Tests', icon: FileText },
@@ -800,6 +804,8 @@ const AdminInterface = ({
               allTests={getAllTests()}
               calculateScore={calculateScore}
               getEvaluation={getEvaluation}
+              allResults={allResults}
+              allStudents={allStudents}
             />
           )}
         </main>
@@ -1075,7 +1081,7 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
 };
 
 // Composant affichage des scores
-const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluation }) => {
+const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluation, allResults, allStudents }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -1101,7 +1107,7 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
                   const test = allTests.find(t => t.id === result.testId);
                   if (!test) return null;
                   
-                  const score = calculateScore(result.value, test, student);
+                  const score = calculateScore(result.value, test, student, allResults, allStudents);
                   const evaluation = getEvaluation(score);
                   
                   return (
@@ -1109,21 +1115,26 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
                       <div className="flex justify-between items-center mb-2">
                         <span className="text-white font-medium">{test.name}</span>
                         <span className={`font-bold ${evaluation.color}`}>
-                          {Math.round(score)}/100
+                          {score !== null ? `${score}/100` : 'N/A'}
                         </span>
                       </div>
-                      <div className="flex justify-between text-sm">
+                      <div className="flex justify-between text-sm mb-2">
                         <span className="text-gray-400">{result.value} {test.unit}</span>
                         <span className={evaluation.color}>{evaluation.text}</span>
                       </div>
-                      <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
-                        <div
-                          className={`h-2 rounded-full ${
-                            score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${score}%` }}
-                        ></div>
-                      </div>
+                      {evaluation.message && (
+                        <p className="text-xs text-gray-300 italic">{evaluation.message}</p>
+                      )}
+                      {score !== null && (
+                        <div className="w-full bg-gray-600 rounded-full h-2 mt-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              score >= 75 ? 'bg-green-500' : score >= 50 ? 'bg-yellow-500' : 'bg-orange-500'
+                            }`}
+                            style={{ width: `${score}%` }}
+                          ></div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1141,7 +1152,7 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
 };
 
 // Composant interface élève
-const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, onLogout }) => {
+const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, onLogout }) => {
   const studentResults = results.filter(r => r.studentId === student.id);
   const allTests = getAllTests();
   
@@ -1186,7 +1197,7 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
                     const test = allTests.find(t => t.id === result.testId);
                     if (!test) return null;
                     
-                    const score = calculateScore(result.value, test, student);
+                    const score = calculateScore(result.value, test, student, allResults, allStudents);
                     const evaluation = getEvaluation(score);
                     
                     return (
@@ -1201,19 +1212,23 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
                               strokeWidth="8"
                               fill="none"
                             />
-                            <circle
-                              cx="48"
-                              cy="48"
-                              r="40"
-                              stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444'}
-                              strokeWidth="8"
-                              fill="none"
-                              strokeDasharray={`${score * 2.51} 251`}
-                              strokeLinecap="round"
-                            />
+                            {score !== null && (
+                              <circle
+                                cx="48"
+                                cy="48"
+                                r="40"
+                                stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#fb923c'}
+                                strokeWidth="8"
+                                fill="none"
+                                strokeDasharray={`${score * 2.51} 251`}
+                                strokeLinecap="round"
+                              />
+                            )}
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
-                            <span className="text-white font-bold">{Math.round(score)}</span>
+                            <span className="text-white font-bold">
+                              {score !== null ? score : 'N/A'}
+                            </span>
                           </div>
                         </div>
                         
@@ -1221,9 +1236,14 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
                         <p className="text-gray-400 text-sm mb-1">
                           {result.value} {test.unit}
                         </p>
-                        <p className={`text-sm font-medium ${evaluation.color}`}>
+                        <p className={`text-sm font-medium ${evaluation.color} mb-1`}>
                           {evaluation.text}
                         </p>
+                        {evaluation.message && (
+                          <p className="text-xs text-gray-300 italic px-2">
+                            {evaluation.message}
+                          </p>
+                        )}
                       </div>
                     );
                   })}
