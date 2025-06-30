@@ -960,6 +960,41 @@ const TestManagement = ({ testCategories, newTest, setNewTest, addTest, deleteTe
 // Composant gestion des élèves
 const StudentManagement = ({ students, classes, newStudent, setNewStudent, addStudent, updateStudent, deleteStudent, editingStudent, setEditingStudent }) => {
   const [editForm, setEditForm] = useState({});
+  const [expandedLevels, setExpandedLevels] = useState({
+    '6ème': true,
+    '5ème': true,
+    '4ème': true,
+    '3ème': true
+  });
+  const [expandedClasses, setExpandedClasses] = useState({});
+
+  // Fonction pour obtenir le niveau à partir de la classe
+  const getLevel = (className) => {
+    if (className.startsWith('6')) return '6ème';
+    if (className.startsWith('5')) return '5ème';
+    if (className.startsWith('4')) return '4ème';
+    if (className.startsWith('3')) return '3ème';
+    return 'Autre';
+  };
+
+  // Grouper les élèves par niveau puis par classe
+  const groupedStudents = students.reduce((groups, student) => {
+    const level = getLevel(student.class);
+    const className = student.class;
+    
+    if (!groups[level]) {
+      groups[level] = {};
+    }
+    if (!groups[level][className]) {
+      groups[level][className] = [];
+    }
+    
+    groups[level][className].push(student);
+    return groups;
+  }, {});
+
+  // Ordonner les niveaux
+  const orderedLevels = ['6ème', '5ème', '4ème', '3ème'].filter(level => groupedStudents[level]);
 
   const handleEditStart = (student) => {
     setEditingStudent(student.id);
@@ -987,12 +1022,35 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
     setEditForm({});
   };
 
+  const toggleLevel = (level) => {
+    setExpandedLevels(prev => ({ ...prev, [level]: !prev[level] }));
+  };
+
+  const toggleClass = (level, className) => {
+    const key = `${level}-${className}`;
+    setExpandedClasses(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-white">Gestion des Élèves</h2>
-        <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
-          {students.length} élèves dans Firebase
+        <div className="flex gap-4">
+          <div className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-1">
+            {students.length} élèves total
+          </div>
+          <button
+            onClick={() => {
+              const allExpanded = Object.values(expandedLevels).every(v => v);
+              const newState = allExpanded ? 
+                { '6ème': false, '5ème': false, '4ème': false, '3ème': false } :
+                { '6ème': true, '5ème': true, '4ème': true, '3ème': true };
+              setExpandedLevels(newState);
+            }}
+            className="text-sm text-blue-400 hover:text-blue-300"
+          >
+            {Object.values(expandedLevels).every(v => v) ? 'Tout replier' : 'Tout déplier'}
+          </button>
         </div>
       </div>
       
@@ -1048,141 +1106,210 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
         </div>
       </div>
 
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-white mb-4">Liste des élèves ({students.length})</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-white">
-            <thead>
-              <tr className="border-b border-gray-700">
-                <th className="text-left p-2">Nom</th>
-                <th className="text-left p-2">Classe</th>
-                <th className="text-left p-2">Genre</th>
-                <th className="text-left p-2">Date naissance</th>
-                <th className="text-left p-2">Identifiant</th>
-                <th className="text-left p-2">Mot de passe</th>
-                <th className="text-left p-2">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map(student => (
-                <tr key={student.id} className="border-b border-gray-700">
-                  {editingStudent === student.id ? (
-                    // Mode édition
-                    <>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={editForm.firstName}
-                            onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
-                            className="bg-gray-700 text-white p-1 rounded text-sm w-20"
-                            placeholder="Prénom"
-                          />
-                          <input
-                            type="text"
-                            value={editForm.lastName}
-                            onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
-                            className="bg-gray-700 text-white p-1 rounded text-sm w-20"
-                            placeholder="Nom"
-                          />
-                        </div>
-                      </td>
-                      <td className="p-2">
-                        <select
-                          value={editForm.class}
-                          onChange={(e) => setEditForm({...editForm, class: e.target.value})}
-                          className="bg-gray-700 text-white p-1 rounded text-sm"
+      {/* Liste organisée par niveau et classe */}
+      <div className="space-y-4">
+        {orderedLevels.map(level => {
+          const levelClasses = Object.keys(groupedStudents[level]).sort();
+          const levelStudentCount = Object.values(groupedStudents[level]).flat().length;
+          
+          return (
+            <div key={level} className="bg-gray-800 rounded-lg overflow-hidden">
+              {/* En-tête du niveau */}
+              <button
+                onClick={() => toggleLevel(level)}
+                className="w-full p-4 bg-gray-700 hover:bg-gray-600 flex items-center justify-between transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  {expandedLevels[level] ? 
+                    <RefreshCw className="w-5 h-5 text-blue-400 rotate-90 transition-transform" /> :
+                    <RefreshCw className="w-5 h-5 text-gray-400 transition-transform" />
+                  }
+                  <h3 className="text-xl font-bold text-white">{level}</h3>
+                  <span className="text-sm text-gray-300">({levelStudentCount} élèves)</span>
+                </div>
+                <div className="flex gap-2">
+                  {levelClasses.map(className => (
+                    <span key={className} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">
+                      {className}: {groupedStudents[level][className].length}
+                    </span>
+                  ))}
+                </div>
+              </button>
+
+              {/* Contenu du niveau */}
+              {expandedLevels[level] && (
+                <div className="p-4 space-y-4">
+                  {levelClasses.map(className => {
+                    const classStudents = groupedStudents[level][className];
+                    const classKey = `${level}-${className}`;
+                    const isClassExpanded = expandedClasses[classKey] !== false; // Par défaut ouvert
+                    
+                    return (
+                      <div key={className} className="bg-gray-700 rounded-lg overflow-hidden">
+                        {/* En-tête de la classe */}
+                        <button
+                          onClick={() => toggleClass(level, className)}
+                          className="w-full p-3 bg-gray-600 hover:bg-gray-500 flex items-center justify-between transition-colors"
                         >
-                          {['6A', '6B', '6C', '5A', '5B', '4A', '4B', '4C', '3A', '3B', '3C'].map(cls => (
-                            <option key={cls} value={cls}>{cls}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <select
-                          value={editForm.gender}
-                          onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
-                          className="bg-gray-700 text-white p-1 rounded text-sm"
-                        >
-                          <option value="M">M</option>
-                          <option value="F">F</option>
-                        </select>
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="date"
-                          value={editForm.birthDate}
-                          onChange={(e) => setEditForm({...editForm, birthDate: e.target.value})}
-                          className="bg-gray-700 text-white p-1 rounded text-sm"
-                        />
-                      </td>
-                      <td className="p-2 text-blue-400 text-sm">
-                        {editForm.firstName && editForm.lastName ? 
-                          `${editForm.firstName.toLowerCase().replace(/\s+/g, '')}.${editForm.lastName.toLowerCase().replace(/\s+/g, '')}` 
-                          : 'En attente...'
-                        }
-                      </td>
-                      <td className="p-2">
-                        <input
-                          type="text"
-                          value={editForm.password}
-                          onChange={(e) => setEditForm({...editForm, password: e.target.value})}
-                          className="bg-gray-700 text-white p-1 rounded text-sm w-20"
-                        />
-                      </td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditSave(student.id)}
-                            className="text-green-400 hover:text-green-300"
-                            title="Sauvegarder"
-                          >
-                            <Save className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={handleEditCancel}
-                            className="text-gray-400 hover:text-gray-300"
-                            title="Annuler"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    // Mode affichage
-                    <>
-                      <td className="p-2">{student.firstName} {student.lastName}</td>
-                      <td className="p-2">{student.class}</td>
-                      <td className="p-2">{student.gender}</td>
-                      <td className="p-2">{student.birthDate || 'Non renseigné'}</td>
-                      <td className="p-2 text-blue-400">{student.username}</td>
-                      <td className="p-2 text-green-400">{student.password}</td>
-                      <td className="p-2">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEditStart(student)}
-                            className="text-blue-400 hover:text-blue-300"
-                            title="Modifier"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => deleteStudent(student.id)}
-                            className="text-red-400 hover:text-red-300"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                          <div className="flex items-center gap-2">
+                            {isClassExpanded ? 
+                              <RefreshCw className="w-4 h-4 text-green-400 rotate-90 transition-transform" /> :
+                              <RefreshCw className="w-4 h-4 text-gray-400 transition-transform" />
+                            }
+                            <h4 className="text-lg font-semibold text-white">Classe {className}</h4>
+                            <span className="text-sm text-gray-300">({classStudents.length} élèves)</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <span className="text-xs bg-green-600 text-white px-2 py-1 rounded">
+                              ♂ {classStudents.filter(s => s.gender === 'M').length}
+                            </span>
+                            <span className="text-xs bg-pink-600 text-white px-2 py-1 rounded">
+                              ♀ {classStudents.filter(s => s.gender === 'F').length}
+                            </span>
+                          </div>
+                        </button>
+
+                        {/* Tableau des élèves de la classe */}
+                        {isClassExpanded && (
+                          <div className="p-3">
+                            <div className="overflow-x-auto">
+                              <table className="w-full text-white text-sm">
+                                <thead>
+                                  <tr className="border-b border-gray-600">
+                                    <th className="text-left p-2">Nom</th>
+                                    <th className="text-left p-2">Genre</th>
+                                    <th className="text-left p-2">Date naissance</th>
+                                    <th className="text-left p-2">Identifiant</th>
+                                    <th className="text-left p-2">Mot de passe</th>
+                                    <th className="text-left p-2">Actions</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {classStudents
+                                    .sort((a, b) => a.lastName.localeCompare(b.lastName))
+                                    .map(student => (
+                                    <tr key={student.id} className="border-b border-gray-600 hover:bg-gray-600/50">
+                                      {editingStudent === student.id ? (
+                                        // Mode édition
+                                        <>
+                                          <td className="p-2">
+                                            <div className="flex gap-1">
+                                              <input
+                                                type="text"
+                                                value={editForm.firstName}
+                                                onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
+                                                className="bg-gray-700 text-white p-1 rounded text-xs w-16"
+                                                placeholder="Prénom"
+                                              />
+                                              <input
+                                                type="text"
+                                                value={editForm.lastName}
+                                                onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
+                                                className="bg-gray-700 text-white p-1 rounded text-xs w-16"
+                                                placeholder="Nom"
+                                              />
+                                            </div>
+                                          </td>
+                                          <td className="p-2">
+                                            <select
+                                              value={editForm.gender}
+                                              onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                                              className="bg-gray-700 text-white p-1 rounded text-xs"
+                                            >
+                                              <option value="M">M</option>
+                                              <option value="F">F</option>
+                                            </select>
+                                          </td>
+                                          <td className="p-2">
+                                            <input
+                                              type="date"
+                                              value={editForm.birthDate}
+                                              onChange={(e) => setEditForm({...editForm, birthDate: e.target.value})}
+                                              className="bg-gray-700 text-white p-1 rounded text-xs"
+                                            />
+                                          </td>
+                                          <td className="p-2 text-blue-400 text-xs">
+                                            {editForm.firstName && editForm.lastName ? 
+                                              `${editForm.firstName.toLowerCase().replace(/\s+/g, '')}.${editForm.lastName.toLowerCase().replace(/\s+/g, '')}` 
+                                              : 'En attente...'
+                                            }
+                                          </td>
+                                          <td className="p-2">
+                                            <input
+                                              type="text"
+                                              value={editForm.password}
+                                              onChange={(e) => setEditForm({...editForm, password: e.target.value})}
+                                              className="bg-gray-700 text-white p-1 rounded text-xs w-16"
+                                            />
+                                          </td>
+                                          <td className="p-2">
+                                            <div className="flex gap-1">
+                                              <button
+                                                onClick={() => handleEditSave(student.id)}
+                                                className="text-green-400 hover:text-green-300"
+                                                title="Sauvegarder"
+                                              >
+                                                <Save className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={handleEditCancel}
+                                                className="text-gray-400 hover:text-gray-300"
+                                                title="Annuler"
+                                              >
+                                                <X className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </>
+                                      ) : (
+                                        // Mode affichage
+                                        <>
+                                          <td className="p-2">{student.firstName} {student.lastName}</td>
+                                          <td className="p-2">
+                                            <span className={`px-2 py-1 rounded text-xs ${
+                                              student.gender === 'M' ? 'bg-blue-600' : 'bg-pink-600'
+                                            }`}>
+                                              {student.gender === 'M' ? '♂' : '♀'}
+                                            </span>
+                                          </td>
+                                          <td className="p-2 text-gray-300">{student.birthDate || 'Non renseigné'}</td>
+                                          <td className="p-2 text-blue-400 text-xs">{student.username}</td>
+                                          <td className="p-2 text-green-400 text-xs">{student.password}</td>
+                                          <td className="p-2">
+                                            <div className="flex gap-1">
+                                              <button
+                                                onClick={() => handleEditStart(student)}
+                                                className="text-blue-400 hover:text-blue-300"
+                                                title="Modifier"
+                                              >
+                                                <Edit className="w-3 h-3" />
+                                              </button>
+                                              <button
+                                                onClick={() => deleteStudent(student.id)}
+                                                className="text-red-400 hover:text-red-300"
+                                                title="Supprimer"
+                                              >
+                                                <Trash2 className="w-3 h-3" />
+                                              </button>
+                                            </div>
+                                          </td>
+                                        </>
+                                      )}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
