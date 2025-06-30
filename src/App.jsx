@@ -41,6 +41,7 @@ const App = () => {
     endurance: [],
     saut: [],
     lancer: [],
+    force: [],
     souplesse: [],
     equilibre: []
   });
@@ -111,6 +112,7 @@ const App = () => {
         endurance: [],
         saut: [],
         lancer: [],
+        force: [],
         souplesse: [],
         equilibre: []
       };
@@ -813,6 +815,7 @@ const TestManagement = ({ testCategories, newTest, setNewTest, addTest, deleteTe
     endurance: 'Endurance',
     saut: 'Saut',
     lancer: 'Lancer',
+    force: 'Force',
     souplesse: 'Souplesse',
     equilibre: 'Équilibre'
   };
