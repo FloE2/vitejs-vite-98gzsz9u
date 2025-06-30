@@ -208,6 +208,25 @@ const App = () => {
     }
   };
 
+  // Modifier un élève
+  const updateStudent = async (studentId, updatedData) => {
+    try {
+      // Régénérer l'identifiant si prénom ou nom ont changé
+      const username = generateStudentId(updatedData.firstName, updatedData.lastName);
+      
+      await updateDoc(doc(db, 'students', studentId), {
+        ...updatedData,
+        username,
+        updatedAt: new Date()
+      });
+      
+      await loadStudents();
+      setEditingStudent(null);
+    } catch (error) {
+      console.error('Erreur modification élève:', error);
+    }
+  };
+
   // Supprimer un élève
   const deleteStudent = async (studentId) => {
     try {
@@ -348,8 +367,11 @@ const App = () => {
         addTest={addTest}
         deleteTest={deleteTest}
         addStudent={addStudent}
+        updateStudent={updateStudent}
         deleteStudent={deleteStudent}
         addResult={addResult}
+        editingStudent={editingStudent}
+        setEditingStudent={setEditingStudent}
         calculateScore={calculateScore}
         getEvaluation={getEvaluation}
         getAllTests={getAllTests}
@@ -716,8 +738,8 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
 const AdminInterface = ({
   currentUser, activeTab, setActiveTab, testCategories, students, results, classes,
   newTest, setNewTest, newStudent, setNewStudent, newResult, setNewResult,
-  addTest, deleteTest, addStudent, deleteStudent, addResult,
-  calculateScore, getEvaluation, getAllTests, allResults, allStudents, onLogout
+  addTest, deleteTest, addStudent, updateStudent, deleteStudent, addResult,
+  editingStudent, setEditingStudent, calculateScore, getEvaluation, getAllTests, allResults, allStudents, onLogout
 }) => {
   const tabs = [
     { id: 'tests', label: 'Gestion des Tests', icon: FileText },
@@ -783,7 +805,10 @@ const AdminInterface = ({
               newStudent={newStudent}
               setNewStudent={setNewStudent}
               addStudent={addStudent}
+              updateStudent={updateStudent}
               deleteStudent={deleteStudent}
+              editingStudent={editingStudent}
+              setEditingStudent={setEditingStudent}
             />
           )}
           
@@ -913,7 +938,35 @@ const TestManagement = ({ testCategories, newTest, setNewTest, addTest, deleteTe
 };
 
 // Composant gestion des élèves
-const StudentManagement = ({ students, classes, newStudent, setNewStudent, addStudent, deleteStudent }) => {
+const StudentManagement = ({ students, classes, newStudent, setNewStudent, addStudent, updateStudent, deleteStudent, editingStudent, setEditingStudent }) => {
+  const [editForm, setEditForm] = useState({});
+
+  const handleEditStart = (student) => {
+    setEditingStudent(student.id);
+    setEditForm({
+      firstName: student.firstName,
+      lastName: student.lastName,
+      birthDate: student.birthDate,
+      gender: student.gender,
+      class: student.class,
+      password: student.password
+    });
+  };
+
+  const handleEditCancel = () => {
+    setEditingStudent(null);
+    setEditForm({});
+  };
+
+  const handleEditSave = async (studentId) => {
+    if (!editForm.firstName.trim() || !editForm.lastName.trim()) {
+      alert('Le prénom et le nom sont obligatoires');
+      return;
+    }
+    await updateStudent(studentId, editForm);
+    setEditForm({});
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -983,6 +1036,8 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
               <tr className="border-b border-gray-700">
                 <th className="text-left p-2">Nom</th>
                 <th className="text-left p-2">Classe</th>
+                <th className="text-left p-2">Genre</th>
+                <th className="text-left p-2">Date naissance</th>
                 <th className="text-left p-2">Identifiant</th>
                 <th className="text-left p-2">Mot de passe</th>
                 <th className="text-left p-2">Actions</th>
@@ -991,18 +1046,118 @@ const StudentManagement = ({ students, classes, newStudent, setNewStudent, addSt
             <tbody>
               {students.map(student => (
                 <tr key={student.id} className="border-b border-gray-700">
-                  <td className="p-2">{student.firstName} {student.lastName}</td>
-                  <td className="p-2">{student.class}</td>
-                  <td className="p-2 text-blue-400">{student.username}</td>
-                  <td className="p-2 text-green-400">{student.password}</td>
-                  <td className="p-2">
-                    <button
-                      onClick={() => deleteStudent(student.id)}
-                      className="text-red-400 hover:text-red-300"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </td>
+                  {editingStudent === student.id ? (
+                    // Mode édition
+                    <>
+                      <td className="p-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editForm.firstName}
+                            onChange={(e) => setEditForm({...editForm, firstName: e.target.value})}
+                            className="bg-gray-700 text-white p-1 rounded text-sm w-20"
+                            placeholder="Prénom"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.lastName}
+                            onChange={(e) => setEditForm({...editForm, lastName: e.target.value})}
+                            className="bg-gray-700 text-white p-1 rounded text-sm w-20"
+                            placeholder="Nom"
+                          />
+                        </div>
+                      </td>
+                      <td className="p-2">
+                        <select
+                          value={editForm.class}
+                          onChange={(e) => setEditForm({...editForm, class: e.target.value})}
+                          className="bg-gray-700 text-white p-1 rounded text-sm"
+                        >
+                          {['6A', '6B', '6C', '5A', '5B', '4A', '4B', '4C', '3A', '3B', '3C'].map(cls => (
+                            <option key={cls} value={cls}>{cls}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <select
+                          value={editForm.gender}
+                          onChange={(e) => setEditForm({...editForm, gender: e.target.value})}
+                          className="bg-gray-700 text-white p-1 rounded text-sm"
+                        >
+                          <option value="M">M</option>
+                          <option value="F">F</option>
+                        </select>
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="date"
+                          value={editForm.birthDate}
+                          onChange={(e) => setEditForm({...editForm, birthDate: e.target.value})}
+                          className="bg-gray-700 text-white p-1 rounded text-sm"
+                        />
+                      </td>
+                      <td className="p-2 text-blue-400 text-sm">
+                        {editForm.firstName && editForm.lastName ? 
+                          `${editForm.firstName.toLowerCase().replace(/\s+/g, '')}.${editForm.lastName.toLowerCase().replace(/\s+/g, '')}` 
+                          : 'En attente...'
+                        }
+                      </td>
+                      <td className="p-2">
+                        <input
+                          type="text"
+                          value={editForm.password}
+                          onChange={(e) => setEditForm({...editForm, password: e.target.value})}
+                          className="bg-gray-700 text-white p-1 rounded text-sm w-20"
+                        />
+                      </td>
+                      <td className="p-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditSave(student.id)}
+                            className="text-green-400 hover:text-green-300"
+                            title="Sauvegarder"
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={handleEditCancel}
+                            className="text-gray-400 hover:text-gray-300"
+                            title="Annuler"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    // Mode affichage
+                    <>
+                      <td className="p-2">{student.firstName} {student.lastName}</td>
+                      <td className="p-2">{student.class}</td>
+                      <td className="p-2">{student.gender}</td>
+                      <td className="p-2">{student.birthDate || 'Non renseigné'}</td>
+                      <td className="p-2 text-blue-400">{student.username}</td>
+                      <td className="p-2 text-green-400">{student.password}</td>
+                      <td className="p-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEditStart(student)}
+                            className="text-blue-400 hover:text-blue-300"
+                            title="Modifier"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteStudent(student.id)}
+                            className="text-red-400 hover:text-red-300"
+                            title="Supprimer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>
