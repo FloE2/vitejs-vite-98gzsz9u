@@ -468,21 +468,24 @@ const App = () => {
   }
 
   // Interface élève
-  return (
-    <StudentInterface
-      student={currentUser}
-      results={results}
-      testCategories={testCategories}
-      calculateScore={calculateScore}
-      getEvaluation={getEvaluation}
-      getAllTests={getAllTests}
-      allResults={results}
-      allStudents={students}
-      updateStudentPassword={updateStudentPassword}
-      setCurrentUser={setCurrentUser}
-      onLogout={handleLogout}
-    />
-  );
+  // Interface élève
+return (
+  <StudentInterface
+    student={currentUser}
+    results={results}
+    testCategories={testCategories}
+    calculateScore={calculateScore}
+    getEvaluation={getEvaluation}
+    getAllTests={getAllTests}
+    allResults={results}
+    allStudents={students}
+    updateStudentPassword={updateStudentPassword}
+    setCurrentUser={setCurrentUser}
+    getTestStats={getTestStats}
+    getLevel={getLevel}
+    onLogout={handleLogout}
+  />
+);
 };
 
 // Composant interface de connexion
@@ -1906,7 +1909,7 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
 };
 
 // Composant interface élève
-const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, updateStudentPassword, setCurrentUser, onLogout }) => {
+const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, updateStudentPassword, setCurrentUser, getTestStats, getLevel, onLogout }) => {
   const studentResults = results.filter(r => r.studentId === student.id);
   const allTests = getAllTests();
   const [showPasswordChange, setShowPasswordChange] = useState(false);
