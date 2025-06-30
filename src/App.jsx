@@ -2164,4 +2164,323 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
 
                         {/* Section debug temporaire - à supprimer plus tard */}
                         <div className="bg-red-900/20 rounded-lg p-3 text-xs mt-2">
-                          <h4 className="text-red-400 font-medium mb-2"></h4>
+                          <h4 className="text-red-400 font-medium mb-2">🐛 Debug Info (temporaire)</h4>
+                          <div className="space-y-1 text-gray-300">
+                            <div>Élève: {student.firstName} {student.lastName}</div>
+                            <div>Classe: {student.class} ({getLevel(student.class)})</div>
+                            <div>Genre: {student.gender}</div>
+                            <div>Test: {test.name}</div>
+                            <div>Stats: {JSON.stringify(stats)}</div>
+                          </div>
+                        </div>
+
+                        {/* Statistiques comparatives */}
+                        {stats.sampleSize >= 1 && (
+                          <div className="bg-gray-600 rounded-lg p-3 text-xs">
+                            <h4 className="text-white font-medium mb-2">
+                              📊 Comparaison {stats.levelGender}
+                            </h4>
+                            <div className="space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-gray-300">Mon score :</span>
+                                <span className="text-white font-medium">{score}/100</span>
+                              </div>
+                              {stats.sampleSize > 1 ? (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Meilleur score :</span>
+                                    <span className="text-yellow-400 font-medium">{stats.bestScore}/100</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-300">Moyenne :</span>
+                                    <span className="text-blue-400 font-medium">{stats.averageScore}/100</span>
+                                  </div>
+                                  <div className="flex justify-between mt-2 pt-1 border-t border-gray-500">
+                                    <span className="text-gray-400">Échantillon :</span>
+                                    <span className="text-gray-300">{stats.sampleSize} élèves</span>
+                                  </div>
+                                  
+                                  {/* Indicateur de position */}
+                                  <div className="mt-2 pt-1">
+                                    {score >= stats.bestScore && (
+                                      <div className="text-center">
+                                        <span className="text-yellow-400 text-xs font-bold">🥇 MEILLEUR SCORE !</span>
+                                      </div>
+                                    )}
+                                    {score > stats.averageScore && score < stats.bestScore && (
+                                      <div className="text-center">
+                                        <span className="text-green-400 text-xs font-bold">📈 AU-DESSUS DE LA MOYENNE</span>
+                                      </div>
+                                    )}
+                                    {score === stats.averageScore && (
+                                      <div className="text-center">
+                                        <span className="text-blue-400 text-xs font-bold">🎯 DANS LA MOYENNE</span>
+                                      </div>
+                                    )}
+                                    {score < stats.averageScore && (
+                                      <div className="text-center">
+                                        <span className="text-orange-400 text-xs font-bold">📉 PEUT MIEUX FAIRE</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </>
+                              ) : (
+                                <div className="text-center mt-2 pt-1 border-t border-gray-500">
+                                  <span className="text-blue-400 text-xs font-bold">🌟 PREMIER DE TON GROUPE !</span>
+                                  <p className="text-gray-400 text-xs mt-1">Tu es le/la premier(e) à passer ce test</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {evaluation.message && (
+                          <p className="text-xs text-gray-300 italic px-2 mt-2 text-center">
+                            {evaluation.message}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        
+        {studentResults.length === 0 && (
+          <div className="text-center py-12">
+            <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Aucun résultat disponible</h2>
+            <p className="text-gray-400">Vos résultats apparaîtront ici une fois saisis par votre professeur.</p>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+// Composant vue détaillée d'un élève (pour les admins)
+const StudentDetailView = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, getTestStats, onBack }) => {
+  const studentResults = results.filter(r => r.studentId === student.id);
+  const allTests = getAllTests();
+
+  // Fonction pour obtenir le niveau à partir de la classe
+  const getLevel = (className) => {
+    if (className.startsWith('6')) return '6ème';
+    if (className.startsWith('5')) return '5ème';
+    if (className.startsWith('4')) return '4ème';
+    if (className.startsWith('3')) return '3ème';
+    return 'Autre';
+  };
+
+  // Reconstituer les catégories avec les tests
+  const categoriesWithTests = {};
+  allTests.forEach(test => {
+    if (!categoriesWithTests[test.category]) {
+      categoriesWithTests[test.category] = [];
+    }
+    categoriesWithTests[test.category].push(test);
+  });
+  
+  return (
+    <div className="space-y-6">
+      {/* En-tête avec bouton retour */}
+      <div className="flex items-center gap-4">
+        <button
+          onClick={onBack}
+          className="bg-gray-600 hover:bg-gray-500 text-white p-2 rounded-lg flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4 rotate-180" />
+          Retour à la liste
+        </button>
+        <div>
+          <h2 className="text-2xl font-bold text-white">
+            {student.firstName} {student.lastName}
+          </h2>
+          <p className="text-gray-400">Classe {student.class} • Vue détaillée des résultats</p>
+        </div>
+      </div>
+
+      {/* Statistiques générales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Tests effectués</h3>
+          <p className="text-2xl font-bold text-blue-400">{studentResults.length}</p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Score moyen</h3>
+          <p className="text-2xl font-bold text-green-400">
+            {studentResults.length > 0 
+              ? Math.round(studentResults.reduce((sum, result) => {
+                  const test = allTests.find(t => t.id === result.testId);
+                  if (test) {
+                    const score = calculateScore(result.value, test, student);
+                    return sum + (score || 0);
+                  }
+                  return sum;
+                }, 0) / studentResults.length)
+              : 0}/100
+          </p>
+        </div>
+        <div className="bg-gray-800 rounded-lg p-4">
+          <h3 className="text-white font-medium mb-2">Identifiant</h3>
+          <p className="text-lg text-blue-400">{student.username}</p>
+        </div>
+      </div>
+
+      {/* Résultats par catégorie */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Object.entries(categoriesWithTests).map(([category, tests]) => {
+          const categoryResults = studentResults.filter(result => 
+            tests.some(test => test.id === result.testId)
+          );
+          
+          if (categoryResults.length === 0) return null;
+          
+          return (
+            <div key={category} className="bg-gray-800 rounded-lg p-6">
+              <h2 className="text-lg font-semibold text-white mb-4 capitalize">
+                {category}
+              </h2>
+              
+              <div className="space-y-6">
+                {categoryResults.map(result => {
+                  const test = allTests.find(t => t.id === result.testId);
+                  if (!test) return null;
+                  
+                  const score = calculateScore(result.value, test, student);
+                  const evaluation = getEvaluation(score);
+                  const stats = getTestStats(result.testId, student, allResults, allStudents, allTests);
+                  
+                  return (
+                    <div key={result.id} className="bg-gray-700 rounded-lg p-4">
+                      <div className="text-center mb-4">
+                        <div className="relative w-24 h-24 mx-auto mb-3">
+                          <svg className="w-24 h-24 transform -rotate-90">
+                            <circle
+                              cx="48"
+                              cy="48"
+                              r="40"
+                              stroke="rgb(75, 85, 99)"
+                              strokeWidth="8"
+                              fill="none"
+                            />
+                            {score !== null && (
+                              <circle
+                                cx="48"
+                                cy="48"
+                                r="40"
+                                stroke={score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#fb923c'}
+                                strokeWidth="8"
+                                fill="none"
+                                strokeDasharray={`${score * 2.51} 251`}
+                                strokeLinecap="round"
+                              />
+                            )}
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-white font-bold">
+                              {score !== null ? score : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <h3 className="text-white font-medium mb-1">{test.name}</h3>
+                        <p className="text-gray-400 text-sm mb-1">
+                          {result.value} {test.unit}
+                        </p>
+                        <p className="text-xs text-gray-400 mb-1">
+                          {new Date(result.date).toLocaleDateString('fr-FR')}
+                        </p>
+                        <p className={`text-sm font-medium ${evaluation.color} mb-2`}>
+                          {evaluation.text}
+                        </p>
+                      </div>
+
+                      {/* Statistiques comparatives */}
+                      {stats.sampleSize >= 1 && (
+                        <div className="bg-gray-600 rounded-lg p-3 text-xs">
+                          <h4 className="text-white font-medium mb-2">
+                            📊 Comparaison {stats.levelGender}
+                          </h4>
+                          <div className="space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-300">Score élève :</span>
+                              <span className="text-white font-medium">{score}/100</span>
+                            </div>
+                            {stats.sampleSize > 1 ? (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-300">Meilleur score :</span>
+                                  <span className="text-yellow-400 font-medium">{stats.bestScore}/100</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-300">Moyenne :</span>
+                                  <span className="text-blue-400 font-medium">{stats.averageScore}/100</span>
+                                </div>
+                                <div className="flex justify-between mt-2 pt-1 border-t border-gray-500">
+                                  <span className="text-gray-400">Échantillon :</span>
+                                  <span className="text-gray-300">{stats.sampleSize} élèves</span>
+                                </div>
+                                
+                                {/* Indicateur de position */}
+                                <div className="mt-2 pt-1">
+                                  {score >= stats.bestScore && (
+                                    <div className="text-center">
+                                      <span className="text-yellow-400 text-xs font-bold">🥇 MEILLEUR SCORE !</span>
+                                    </div>
+                                  )}
+                                  {score > stats.averageScore && score < stats.bestScore && (
+                                    <div className="text-center">
+                                      <span className="text-green-400 text-xs font-bold">📈 AU-DESSUS DE LA MOYENNE</span>
+                                    </div>
+                                  )}
+                                  {score === stats.averageScore && (
+                                    <div className="text-center">
+                                      <span className="text-blue-400 text-xs font-bold">🎯 DANS LA MOYENNE</span>
+                                    </div>
+                                  )}
+                                  {score < stats.averageScore && (
+                                    <div className="text-center">
+                                      <span className="text-orange-400 text-xs font-bold">📉 PEUT MIEUX FAIRE</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-center mt-2 pt-1 border-t border-gray-500">
+                                <span className="text-blue-400 text-xs font-bold">🌟 PREMIER DE SON GROUPE !</span>
+                                <p className="text-gray-400 text-xs mt-1">Premier(e) à passer ce test</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {evaluation.message && (
+                        <p className="text-xs text-gray-300 italic px-2 mt-2 text-center">
+                          {evaluation.message}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      
+      {studentResults.length === 0 && (
+        <div className="text-center py-12">
+          <BarChart3 className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-xl font-semibold text-white mb-2">Aucun résultat disponible</h3>
+          <p className="text-gray-400">Cet élève n'a pas encore de résultats enregistrés.</p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default App;
