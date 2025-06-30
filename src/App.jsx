@@ -17,7 +17,10 @@ import {
 } from 'firebase/firestore';
 
 // Configuration sécurité admin
-const ADMIN_EMAILS = ["florianeude@gmail.com"];
+const ADMIN_EMAILS = [
+  "florianeude@gmail.com",
+  "cosperecemeric@gmail.com"
+];
 const googleProvider = new GoogleAuthProvider();
 
 const checkIfAdmin = (userEmail) => {
@@ -259,7 +262,7 @@ const App = () => {
       
       if (!checkIfAdmin(result.user.email)) {
         await signOut(auth);
-        alert("❌ Accès refusé : Seul florianeude@gmail.com peut accéder à l'administration");
+        alert("❌ Accès refusé : Seuls les administrateurs EPS autorisés peuvent accéder à cette section");
         return false;
       }
       
@@ -483,7 +486,7 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
             🔥 Connecté à Firebase
           </div>
           <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 rounded-lg p-2">
-            🔒 Accès administrateur sécurisé
+            🔒 Accès administrateurs EPS sécurisé
           </div>
         </div>
 
