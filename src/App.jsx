@@ -369,9 +369,20 @@ const App = () => {
 
 // Composant interface de connexion
 const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
+  const [activeTab, setActiveTab] = useState('login'); // 'login' ou 'register'
   const [loginData, setLoginData] = useState({ username: '', password: '' });
+  const [registerData, setRegisterData] = useState({
+    firstName: '',
+    lastName: '',
+    birthDate: '',
+    gender: 'M',
+    class: '6A',
+    password: ''
+  });
   const [loginError, setLoginError] = useState('');
+  const [registerError, setRegisterError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   const handleStudentLogin = () => {
     if (onLoginStudent(loginData.username, loginData.password)) {
@@ -397,6 +408,70 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
     }
   };
 
+  const generateStudentId = (firstName, lastName) => {
+    return `${firstName.toLowerCase().replace(/\s+/g, '')}.${lastName.toLowerCase().replace(/\s+/g, '')}`;
+  };
+
+  const handleStudentRegister = async () => {
+    // Validation des champs
+    if (!registerData.firstName.trim() || !registerData.lastName.trim() || 
+        !registerData.birthDate || !registerData.password.trim()) {
+      setRegisterError('Tous les champs sont obligatoires');
+      return;
+    }
+
+    if (registerData.password.length < 4) {
+      setRegisterError('Le mot de passe doit contenir au moins 4 caractères');
+      return;
+    }
+
+    setIsLoading(true);
+    setRegisterError('');
+
+    const username = generateStudentId(registerData.firstName, registerData.lastName);
+
+    try {
+      // Vérifier si l'username existe déjà
+      const studentsSnapshot = await getDocs(collection(db, 'students'));
+      const existingStudent = studentsSnapshot.docs.find(doc => 
+        doc.data().username === username
+      );
+
+      if (existingStudent) {
+        setRegisterError(`Un compte existe déjà pour ${registerData.firstName} ${registerData.lastName}`);
+        setIsLoading(false);
+        return;
+      }
+
+      // Créer le compte
+      await addDoc(collection(db, 'students'), {
+        firstName: registerData.firstName,
+        lastName: registerData.lastName,
+        birthDate: registerData.birthDate,
+        gender: registerData.gender,
+        class: registerData.class,
+        username,
+        password: registerData.password,
+        createdAt: new Date()
+      });
+
+      setRegisterSuccess(true);
+      
+      // Auto-connexion après inscription
+      setTimeout(() => {
+        if (onLoginStudent(username, registerData.password)) {
+          setRegisterError('');
+        }
+      }, 1500);
+
+    } catch (error) {
+      console.error('Erreur création compte:', error);
+      setRegisterError('Erreur lors de la création du compte. Réessayez.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
       <div className="bg-gray-800 rounded-xl p-8 w-full max-w-md">
@@ -412,75 +487,222 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
           </div>
         </div>
 
-        <div className="space-y-4">
+        {/* Onglets */}
+        <div className="flex mb-6 bg-gray-700 rounded-lg p-1">
           <button
-            onClick={handleAdminLogin}
-            disabled={isLoading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            onClick={() => {
+              setActiveTab('login');
+              setLoginError('');
+              setRegisterError('');
+              setRegisterSuccess(false);
+            }}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'login' 
+                ? 'bg-blue-600 text-white' 
+                : 'text-gray-300 hover:text-white'
+            }`}
           >
-            {isLoading ? (
-              <>
-                <Loader className="w-5 h-5 animate-spin" />
-                Connexion...
-              </>
+            Se connecter
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('register');
+              setLoginError('');
+              setRegisterError('');
+              setRegisterSuccess(false);
+            }}
+            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+              activeTab === 'register' 
+                ? 'bg-green-600 text-white' 
+                : 'text-gray-300 hover:text-white'
+            }`}
+          >
+            S'inscrire
+          </button>
+        </div>
+
+        {/* Contenu des onglets */}
+        {activeTab === 'login' ? (
+          // ONGLET CONNEXION
+          <div className="space-y-4">
+            <button
+              onClick={handleAdminLogin}
+              disabled={isLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            >
+              {isLoading ? (
+                <>
+                  <Loader className="w-5 h-5 animate-spin" />
+                  Connexion...
+                </>
+              ) : (
+                <>
+                  <User className="w-5 h-5" />
+                  Connexion Administrateur (Google)
+                </>
+              )}
+            </button>
+
+            {loginError && (
+              <div className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg p-2">
+                {loginError}
+              </div>
+            )}
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-600"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-gray-800 text-gray-400">ou</span>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <input
+                type="text"
+                placeholder="Identifiant élève"
+                value={loginData.username}
+                onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
+                className="w-full bg-gray-700 text-white p-3 rounded-lg"
+                onKeyPress={(e) => e.key === 'Enter' && handleStudentLogin()}
+              />
+              <input
+                type="password"
+                placeholder="Mot de passe"
+                value={loginData.password}
+                onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                className="w-full bg-gray-700 text-white p-3 rounded-lg"
+                onKeyPress={(e) => e.key === 'Enter' && handleStudentLogin()}
+              />
+              <button
+                onClick={handleStudentLogin}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+              >
+                <Users className="w-5 h-5" />
+                Connexion Élève
+              </button>
+            </div>
+
+            <div className="text-xs text-gray-500 text-center mt-4">
+              <p className="font-medium text-gray-400 mb-2">Comptes de test disponibles :</p>
+              <div className="space-y-1">
+                <p>martin.dupont / martin123</p>
+                <p>julie.durand / julie123</p>
+                <p>pierre.lemoine / pierre123</p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          // ONGLET INSCRIPTION
+          <div className="space-y-4">
+            {registerSuccess ? (
+              <div className="text-center py-8">
+                <div className="text-green-400 text-6xl mb-4">✅</div>
+                <h3 className="text-xl font-bold text-white mb-2">Compte créé avec succès !</h3>
+                <p className="text-gray-400 mb-4">
+                  Votre identifiant : <span className="text-blue-400 font-medium">
+                    {generateStudentId(registerData.firstName, registerData.lastName)}
+                  </span>
+                </p>
+                <p className="text-gray-400">Connexion automatique...</p>
+                <Loader className="w-6 h-6 animate-spin text-blue-500 mx-auto mt-4" />
+              </div>
             ) : (
               <>
-                <User className="w-5 h-5" />
-                Connexion Administrateur (Google)
+                <h3 className="text-lg font-semibold text-white mb-4 text-center">Créer un compte élève</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <input
+                    type="text"
+                    placeholder="Prénom"
+                    value={registerData.firstName}
+                    onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
+                    className="bg-gray-700 text-white p-3 rounded-lg"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nom"
+                    value={registerData.lastName}
+                    onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
+                    className="bg-gray-700 text-white p-3 rounded-lg"
+                  />
+                </div>
+
+                <input
+                  type="date"
+                  value={registerData.birthDate}
+                  onChange={(e) => setRegisterData({ ...registerData, birthDate: e.target.value })}
+                  className="w-full bg-gray-700 text-white p-3 rounded-lg"
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <select
+                    value={registerData.gender}
+                    onChange={(e) => setRegisterData({ ...registerData, gender: e.target.value })}
+                    className="bg-gray-700 text-white p-3 rounded-lg"
+                  >
+                    <option value="M">Masculin</option>
+                    <option value="F">Féminin</option>
+                  </select>
+                  <select
+                    value={registerData.class}
+                    onChange={(e) => setRegisterData({ ...registerData, class: e.target.value })}
+                    className="bg-gray-700 text-white p-3 rounded-lg"
+                  >
+                    {['6A', '6B', '6C', '5A', '5B', '4A', '4B', '4C', '3A', '3B', '3C'].map(cls => (
+                      <option key={cls} value={cls}>{cls}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <input
+                  type="password"
+                  placeholder="Choisissez votre mot de passe"
+                  value={registerData.password}
+                  onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
+                  className="w-full bg-gray-700 text-white p-3 rounded-lg"
+                />
+
+                {registerData.firstName && registerData.lastName && (
+                  <div className="text-center text-sm text-gray-400 bg-gray-700/50 rounded-lg p-2">
+                    Votre identifiant sera : <span className="text-blue-400 font-medium">
+                      {generateStudentId(registerData.firstName, registerData.lastName)}
+                    </span>
+                  </div>
+                )}
+
+                {registerError && (
+                  <div className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg p-2">
+                    {registerError}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleStudentRegister}
+                  disabled={isLoading}
+                  className="w-full bg-green-600 hover:bg-green-700 disabled:bg-green-800 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Création du compte...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-5 h-5" />
+                      Créer mon compte
+                    </>
+                  )}
+                </button>
+
+                <div className="text-xs text-gray-500 text-center">
+                  <p>En créant un compte, vous acceptez les conditions d'utilisation du système de gestion des tests sportifs.</p>
+                </div>
               </>
             )}
-          </button>
-
-          {loginError && (
-            <div className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg p-2">
-              {loginError}
-            </div>
-          )}
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-600"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-gray-800 text-gray-400">ou</span>
-            </div>
           </div>
-
-          <div className="space-y-4">
-            <input
-              type="text"
-              placeholder="Identifiant élève"
-              value={loginData.username}
-              onChange={(e) => setLoginData({ ...loginData, username: e.target.value })}
-              className="w-full bg-gray-700 text-white p-3 rounded-lg"
-              onKeyPress={(e) => e.key === 'Enter' && handleStudentLogin()}
-            />
-            <input
-              type="password"
-              placeholder="Mot de passe"
-              value={loginData.password}
-              onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
-              className="w-full bg-gray-700 text-white p-3 rounded-lg"
-              onKeyPress={(e) => e.key === 'Enter' && handleStudentLogin()}
-            />
-            <button
-              onClick={handleStudentLogin}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
-            >
-              <Users className="w-5 h-5" />
-              Connexion Élève
-            </button>
-          </div>
-
-          <div className="text-xs text-gray-500 text-center mt-4">
-            <p className="font-medium text-gray-400 mb-2">Comptes de test disponibles :</p>
-            <div className="space-y-1">
-              <p>martin.dupont / martin123</p>
-              <p>julie.durand / julie123</p>
-              <p>pierre.lemoine / pierre123</p>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
