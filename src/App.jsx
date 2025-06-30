@@ -227,6 +227,20 @@ const App = () => {
     }
   };
 
+  // Modifier le mot de passe d'un élève
+  const updateStudentPassword = async (studentId, newPassword) => {
+    try {
+      await updateDoc(doc(db, 'students', studentId), {
+        password: newPassword,
+        updatedAt: new Date()
+      });
+      return true;
+    } catch (error) {
+      console.error('Erreur modification mot de passe:', error);
+      return false;
+    }
+  };
+
   // Supprimer un élève
   const deleteStudent = async (studentId) => {
     try {
@@ -393,6 +407,7 @@ const App = () => {
       getAllTests={getAllTests}
       allResults={results}
       allStudents={students}
+      updateStudentPassword={updateStudentPassword}
       onLogout={handleLogout}
     />
   );
@@ -1307,9 +1322,58 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
 };
 
 // Composant interface élève
-const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, onLogout }) => {
+const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, updateStudentPassword, onLogout }) => {
   const studentResults = results.filter(r => r.studentId === student.id);
   const allTests = getAllTests();
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+
+    // Validation
+    if (passwordForm.currentPassword !== student.password) {
+      setPasswordError('Mot de passe actuel incorrect');
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 4) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 4 caractères');
+      return;
+    }
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas');
+      return;
+    }
+
+    if (passwordForm.newPassword === passwordForm.currentPassword) {
+      setPasswordError('Le nouveau mot de passe doit être différent de l\'ancien');
+      return;
+    }
+
+    // Mise à jour
+    const success = await updateStudentPassword(student.id, passwordForm.newPassword);
+    
+    if (success) {
+      setPasswordSuccess('Mot de passe modifié avec succès !');
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      setShowPasswordChange(false);
+      
+      // Mettre à jour le student local
+      student.password = passwordForm.newPassword;
+    } else {
+      setPasswordError('Erreur lors de la modification du mot de passe');
+    }
+  };
   
   return (
     <div className="min-h-screen bg-gray-900">
@@ -1322,17 +1386,107 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
             <p className="text-gray-400">Classe {student.class}</p>
             <p className="text-green-400 text-sm">🔥 Données synchronisées Firebase</p>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-gray-400 hover:text-white flex items-center gap-2"
-          >
-            <LogOut className="w-5 h-5" />
-            Déconnexion
-          </button>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setShowPasswordChange(!showPasswordChange)}
+              className="text-blue-400 hover:text-blue-300 flex items-center gap-2 text-sm"
+            >
+              <User className="w-4 h-4" />
+              Modifier mon mot de passe
+            </button>
+            <button
+              onClick={onLogout}
+              className="text-gray-400 hover:text-white flex items-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              Déconnexion
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="p-6">
+        {/* Section modification mot de passe */}
+        {showPasswordChange && (
+          <div className="bg-gray-800 rounded-lg p-6 mb-6">
+            <h3 className="text-lg font-semibold text-white mb-4">Modifier mon mot de passe</h3>
+            
+            <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <input
+                  type="password"
+                  placeholder="Mot de passe actuel"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                  className="bg-gray-700 text-white p-3 rounded-lg"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Nouveau mot de passe"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                  className="bg-gray-700 text-white p-3 rounded-lg"
+                  required
+                />
+                <input
+                  type="password"
+                  placeholder="Confirmer le nouveau mot de passe"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                  className="bg-gray-700 text-white p-3 rounded-lg"
+                  required
+                />
+              </div>
+              
+              {passwordError && (
+                <div className="text-red-400 text-sm bg-red-900/20 rounded-lg p-3">
+                  {passwordError}
+                </div>
+              )}
+              
+              {passwordSuccess && (
+                <div className="text-green-400 text-sm bg-green-900/20 rounded-lg p-3">
+                  {passwordSuccess}
+                </div>
+              )}
+              
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Enregistrer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordChange(false);
+                    setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setPasswordError('');
+                    setPasswordSuccess('');
+                  }}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Annuler
+                </button>
+              </div>
+            </form>
+            
+            <div className="mt-4 text-xs text-gray-400">
+              <p>💡 <strong>Conseils pour un bon mot de passe :</strong></p>
+              <ul className="list-disc list-inside mt-1 space-y-1">
+                <li>Au moins 4 caractères (mais plus c'est mieux !)</li>
+                <li>Utilisez des chiffres et des lettres</li>
+                <li>Choisissez quelque chose de facile à retenir pour vous</li>
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* Section résultats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Object.entries(testCategories).map(([category, tests]) => {
             const categoryResults = studentResults.filter(result => 
