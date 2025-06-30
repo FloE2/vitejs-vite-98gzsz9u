@@ -234,6 +234,9 @@ const App = () => {
         password: newPassword,
         updatedAt: new Date()
       });
+      
+      // Recharger les données pour synchroniser
+      await loadStudents();
       return true;
     } catch (error) {
       console.error('Erreur modification mot de passe:', error);
@@ -382,6 +385,7 @@ const App = () => {
         deleteTest={deleteTest}
         addStudent={addStudent}
         updateStudent={updateStudent}
+        updateStudentPassword={updateStudentPassword}
         deleteStudent={deleteStudent}
         addResult={addResult}
         editingStudent={editingStudent}
@@ -408,6 +412,7 @@ const App = () => {
       allResults={results}
       allStudents={students}
       updateStudentPassword={updateStudentPassword}
+      setCurrentUser={setCurrentUser}
       onLogout={handleLogout}
     />
   );
@@ -1322,7 +1327,7 @@ const ScoresDisplay = ({ students, results, allTests, calculateScore, getEvaluat
 };
 
 // Composant interface élève
-const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, updateStudentPassword, onLogout }) => {
+const StudentInterface = ({ student, results, testCategories, calculateScore, getEvaluation, getAllTests, allResults, allStudents, updateStudentPassword, setCurrentUser, onLogout }) => {
   const studentResults = results.filter(r => r.studentId === student.id);
   const allTests = getAllTests();
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -1368,8 +1373,13 @@ const StudentInterface = ({ student, results, testCategories, calculateScore, ge
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
       setShowPasswordChange(false);
       
-      // Mettre à jour le student local
-      student.password = passwordForm.newPassword;
+      // Mettre à jour les données de l'utilisateur connecté
+      setCurrentUser({ ...student, password: passwordForm.newPassword });
+      
+      // Message de confirmation temporaire
+      setTimeout(() => {
+        setPasswordSuccess('');
+      }, 3000);
     } else {
       setPasswordError('Erreur lors de la modification du mot de passe');
     }
