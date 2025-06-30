@@ -282,6 +282,73 @@ const App = () => {
     const genderAdjustment = student.gender === 'F' ? 5 : 0;
     
     return Math.min(100, Math.max(0, baseScore + ageAdjustment + genderAdjustment));
+    // Fonction pour obtenir le niveau à partir de la classe
+  const getLevel = (className) => {
+    if (className.startsWith('6')) return '6ème';
+    if (className.startsWith('5')) return '5ème';
+    if (className.startsWith('4')) return '4ème';
+    if (className.startsWith('3')) return '3ème';
+    return 'Autre';
+  };
+
+  // Calculer les statistiques comparatives pour un test donné
+  const getTestStats = (testId, currentStudent, allResults, allStudents, allTests) => {
+    const test = allTests.find(t => t.id === testId);
+    if (!test) return { bestScore: null, averageScore: null, sampleSize: 0 };
+
+    const currentLevel = getLevel(currentStudent.class);
+    const currentGender = currentStudent.gender;
+
+    console.log(`🔍 Debug pour ${currentStudent.firstName} ${currentStudent.lastName}:`);
+    console.log(`- Niveau: ${currentLevel}, Genre: ${currentGender}`);
+    console.log(`- Test: ${test.name} (ID: ${testId})`);
+
+    // Filtrer les élèves du même niveau et genre
+    const sameGroupStudents = allStudents.filter(student => 
+      getLevel(student.class) === currentLevel && student.gender === currentGender
+    );
+    
+    console.log(`- Élèves du même groupe: ${sameGroupStudents.length}`);
+
+    // Obtenir tous les résultats pour ce test des élèves du même groupe
+    const sameGroupResults = allResults.filter(result => 
+      result.testId === testId && 
+      sameGroupStudents.some(student => student.id === result.studentId)
+    );
+
+    console.log(`- Résultats trouvés pour ce test: ${sameGroupResults.length}`);
+
+    if (sameGroupResults.length === 0) {
+      return { bestScore: null, averageScore: null, sampleSize: 0 };
+    }
+
+    // Calculer les scores pour chaque résultat
+    const scores = sameGroupResults.map(result => {
+      const student = sameGroupStudents.find(s => s.id === result.studentId);
+      if (student) {
+        const score = calculateScore(result.value, test, student);
+        console.log(`- ${student.firstName}: ${result.value} ${test.unit} → ${score}/100`);
+        return score;
+      }
+      return 0;
+    }).filter(score => score > 0);
+
+    if (scores.length === 0) {
+      return { bestScore: null, averageScore: null, sampleSize: 0 };
+    }
+
+    const bestScore = Math.max(...scores);
+    const averageScore = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length);
+
+    console.log(`✅ Statistiques: Meilleur=${bestScore}, Moyenne=${averageScore}, Échantillon=${scores.length}`);
+
+    return { 
+      bestScore, 
+      averageScore, 
+      sampleSize: scores.length,
+      levelGender: `${currentLevel} ${currentGender === 'M' ? 'Garçons' : 'Filles'}`
+    };
+  };
   };
 
   // Obtenir l'évaluation textuelle
