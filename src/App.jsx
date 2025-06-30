@@ -1446,10 +1446,10 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
             />
             <button
               onClick={handleAddResult}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center"
+              title="Enregistrer"
             >
               <Save className="w-4 h-4" />
-              Enregistrer
             </button>
           </div>
         </div>
@@ -1461,16 +1461,13 @@ const ResultsEntry = ({ students, allTests, newResult, setNewResult, addResult }
         
         {/* Filtres de recherche */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-700 text-white p-3 pl-12 rounded-lg"
-            />
-            <Users className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-          </div>
+          <input
+            type="text"
+            placeholder="Rechercher"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-gray-700 text-white p-3 rounded-lg"
+          />
           
           <select
             value={selectedLevel}
