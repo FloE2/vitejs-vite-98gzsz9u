@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { User, Users, FileText, BarChart3, Download, RefreshCw, LogOut, Plus, Trash2, Edit, Save, X, Loader } from 'lucide-react';
 import { db } from './firebase';
+import { auth } from './firebase';
+import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
 import { 
   collection, 
   getDocs, 
@@ -13,6 +15,14 @@ import {
   orderBy,
   writeBatch
 } from 'firebase/firestore';
+
+// Configuration sécurité admin
+const ADMIN_EMAILS = ["florianeude@gmail.com"];
+const googleProvider = new GoogleAuthProvider();
+
+const checkIfAdmin = (userEmail) => {
+  return ADMIN_EMAILS.includes(userEmail?.toLowerCase());
+};
 
 const App = () => {
   // États principaux
@@ -242,6 +252,32 @@ const App = () => {
     return { text: 'À améliorer', color: 'text-red-600' };
   };
 
+  // Connexion administrateur sécurisée
+  const loginAdmin = async () => {
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      
+      if (!checkIfAdmin(result.user.email)) {
+        await signOut(auth);
+        alert("❌ Accès refusé : Seul florianeude@gmail.com peut accéder à l'administration");
+        return false;
+      }
+      
+      setCurrentUser({ 
+        ...result.user, 
+        type: 'admin',
+        email: result.user.email,
+        displayName: result.user.displayName
+      });
+      console.log("✅ Connexion administrateur réussie");
+      return true;
+    } catch (error) {
+      console.error("Erreur de connexion:", error);
+      alert("Erreur de connexion. Veuillez réessayer.");
+      return false;
+    }
+  };
+
   // Connexion élève
   const loginStudent = (username, password) => {
     const student = students.find(s => s.username === username && s.password === password);
@@ -250,6 +286,18 @@ const App = () => {
       return true;
     }
     return false;
+  };
+
+  // Déconnexion sécurisée
+  const handleLogout = async () => {
+    try {
+      if (currentUser?.type === 'admin') {
+        await signOut(auth);
+      }
+      setCurrentUser(null);
+    } catch (error) {
+      console.error('Erreur déconnexion:', error);
+    }
   };
 
   // Obtenir tous les tests
@@ -272,13 +320,14 @@ const App = () => {
 
   // Interface de connexion
   if (!currentUser) {
-    return <LoginInterface onLoginAdmin={() => setCurrentUser({ type: 'admin' })} onLoginStudent={loginStudent} />;
+    return <LoginInterface onLoginAdmin={loginAdmin} onLoginStudent={loginStudent} />;
   }
 
   // Interface administrateur
   if (currentUser.type === 'admin') {
     return (
       <AdminInterface
+        currentUser={currentUser}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         testCategories={testCategories}
@@ -299,7 +348,7 @@ const App = () => {
         calculateScore={calculateScore}
         getEvaluation={getEvaluation}
         getAllTests={getAllTests}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={handleLogout}
       />
     );
   }
@@ -313,7 +362,7 @@ const App = () => {
       calculateScore={calculateScore}
       getEvaluation={getEvaluation}
       getAllTests={getAllTests}
-      onLogout={() => setCurrentUser(null)}
+      onLogout={handleLogout}
     />
   );
 };
@@ -322,12 +371,29 @@ const App = () => {
 const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
   const [loginData, setLoginData] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleStudentLogin = () => {
     if (onLoginStudent(loginData.username, loginData.password)) {
       setLoginError('');
     } else {
       setLoginError('Identifiant ou mot de passe incorrect');
+    }
+  };
+
+  const handleAdminLogin = async () => {
+    setIsLoading(true);
+    setLoginError('');
+    
+    try {
+      const success = await onLoginAdmin();
+      if (!success) {
+        setLoginError('Connexion administrateur échouée');
+      }
+    } catch (error) {
+      setLoginError('Erreur de connexion');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -341,16 +407,35 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
           <div className="mt-2 text-xs text-green-400 bg-green-900/20 rounded-lg p-2">
             🔥 Connecté à Firebase
           </div>
+          <div className="mt-2 text-xs text-blue-400 bg-blue-900/20 rounded-lg p-2">
+            🔒 Accès administrateur sécurisé
+          </div>
         </div>
 
         <div className="space-y-4">
           <button
-            onClick={onLoginAdmin}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            onClick={handleAdminLogin}
+            disabled={isLoading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
           >
-            <User className="w-5 h-5" />
-            Connexion Administrateur
+            {isLoading ? (
+              <>
+                <Loader className="w-5 h-5 animate-spin" />
+                Connexion...
+              </>
+            ) : (
+              <>
+                <User className="w-5 h-5" />
+                Connexion Administrateur (Google)
+              </>
+            )}
           </button>
+
+          {loginError && (
+            <div className="text-red-400 text-sm text-center bg-red-900/20 rounded-lg p-2">
+              {loginError}
+            </div>
+          )}
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -378,7 +463,6 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
               className="w-full bg-gray-700 text-white p-3 rounded-lg"
               onKeyPress={(e) => e.key === 'Enter' && handleStudentLogin()}
             />
-            {loginError && <p className="text-red-500 text-sm">{loginError}</p>}
             <button
               onClick={handleStudentLogin}
               className="w-full bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
@@ -404,7 +488,7 @@ const LoginInterface = ({ onLoginAdmin, onLoginStudent }) => {
 
 // Composant interface administrateur
 const AdminInterface = ({
-  activeTab, setActiveTab, testCategories, students, results, classes,
+  currentUser, activeTab, setActiveTab, testCategories, students, results, classes,
   newTest, setNewTest, newStudent, setNewStudent, newResult, setNewResult,
   addTest, deleteTest, addStudent, deleteStudent, addResult,
   calculateScore, getEvaluation, getAllTests, onLogout
@@ -423,6 +507,9 @@ const AdminInterface = ({
           <div>
             <h1 className="text-xl font-bold text-white">Administration - Tests Sportifs</h1>
             <p className="text-green-400 text-sm">🔥 Firebase connecté - eps-sante-ydm</p>
+            <p className="text-blue-400 text-sm">
+              ✅ Connecté : {currentUser.displayName || currentUser.email}
+            </p>
           </div>
           <button
             onClick={onLogout}
